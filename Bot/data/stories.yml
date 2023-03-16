@@ -1,0 +1,16 @@
+version: '3.1'
+
+stories:
+    # - story: Chào hỏi
+    #   steps:
+    #       - intent: greet
+    #       - action: utter_ask_name
+    #       - intent: answer_price
+    #       - action: utter_greet_with_name
+    #       - intent: goodbye
+    #       - action: utter_goodbye_with_name
+    - story: Get user info
+      steps:
+          - intent: greet
+          # - action: action_get_link
+          - action: utter_link_info

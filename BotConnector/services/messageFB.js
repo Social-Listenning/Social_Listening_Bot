@@ -12,6 +12,7 @@ module.exports = {
                 },
                 message: { text: message },
             };
+            console.log(PAGE_ACCESS_TOKEN);
             const result = await axios.post(
                 `${process.env.GRAPH_FACEBOOK_API}/v14.0/me/messages?access_token=${PAGE_ACCESS_TOKEN}`,
                 requestBody

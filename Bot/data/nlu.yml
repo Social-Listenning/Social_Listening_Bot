@@ -1,0 +1,83 @@
+version: '3.1'
+
+nlu:
+    - intent: answer_name
+      examples: |
+          - Tôi tên là [Nam]{"entity": "user_name"}
+          - Chị tên là [Hoa](user_name)
+          - Anh tên là [Long](user_name)
+          - Mình tên là [Phúc](user_name)
+          - Mình tên [Phát](user_name)
+          - Em tên [Hà](user_name) nhé
+          - Huy[Nam](user_name)
+          - Gọi mình là [Phụng](user_name) nha
+          - Tôi tên [Hoàng](user_name)
+          - chị tên [Cúc](user_name)
+          - anh tên [Đức](user_name)
+          - [Tuấn](user_name) nhé
+          - [Bình](user_name)
+          - [Lĩnh](user_name)
+          - [Viễn](user_name)
+          - [Duy](user_name)
+          - [Tú](user_name)
+          - [Tâm](user_name)
+          - [Xuân](user_name)
+          - [Kiều](user_name)
+          - [Thành](user_name)
+          - [Đăng](user_name)
+          - [Bình](user_name)
+          - [Đạt](user_name)
+          - [Vy](user_name)
+          - [Loan](user_name)
+          - [Luân](user_name)
+          - [Quang](user_name)
+          - [Thuận](user_name)
+          - [Trọng](user_name)
+          - [An](user_name)
+          - [Kim](user_name)
+          - [Hằng](user_name)
+          - [Cường](user_name)
+          - [Phú](user_name)
+          - [Thiện]{"entity": "user_name"}
+
+    - intent: greet
+      examples: |
+          - hey
+          - hello
+          - hi
+          - chào
+          - xin chào
+          - chào bot
+          - có ai ở đó không
+          - tôi cần hỗ trợ
+          - Chào bạn
+          - Chào anh
+          - Chào chị
+          - Chào buổi sáng
+          - Có đó không
+          - Rãnh không
+          - Ê
+          - Hú
+          - chào em
+          - em ơi, cho anh hỏi
+          - bot ơi
+          - cho mình hỏi chút
+          - Chào bot, mình là [Zeta](user_name) đây nè
+
+    - intent: goodbye
+      examples: |
+          - bye
+          - goodbye
+          - g9
+          - good night
+          - bye bye
+          - tạm biệt
+          - Hẹn gặp lại
+          - Ngủ ngon
+          - Chúc ngủ ngon
+          - Nói chuyện sau nhé
+          - Tôi sẽ liên hệ sau
+          - tạm biệt em
+          - tạm biệt bot nhá
+          - Biến
+          - Không
