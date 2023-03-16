@@ -1,11 +1,5 @@
-require('dotenv').config();
-
-const authenticateController = require('./authenticate');
-const { webhookFBService, botRasaService } = require('../services/index');
-
-const PAGE_ACCESS_TOKEN = process.env.PAGE_ACCESS_TOKEN;
-
-const msgIds = [];
+const { botRasaService } = require('../services/index');
+const { VERIFY_TOKEN } = process.env;
 
 module.exports = {
     subscribeWebhook: (req, res) => {
@@ -40,13 +34,15 @@ module.exports = {
 
                     if (value && value.comment_id && value.message) {
                         // messageFBService.replyCmt(value.comment_id, value.message);
-                        await botRasaService.replyComment(value.comment_id, value.message);
+                        await botRasaService.sendCommentToBot(value.comment_id, value.message);
                     } else if (value && value.sender.id && value.recipient.id && value.message) {
-                        await botRasaService.replyMessenger(
+                        await botRasaService.sendMessageToBot(
                             value.sender.id,
                             value.recipient.id,
                             value.message.text
                         );
+                    } else {
+                        return res.sendStatus(404);
                     }
                 });
                 // Return a '200 OK' response to all events

@@ -2,7 +2,7 @@ const axios = require('axios');
 const { BOT_RASA_URL } = process.env;
 
 module.exports = {
-    replyComment: async (commentID, message) => {
+    sendCommentToBot: async (commentID, message) => {
         try {
             const requestBody = {
                 message: typeof message === 'string' ? message : message.text,
@@ -20,7 +20,7 @@ module.exports = {
             return error.message;
         }
     },
-    replyMessenger: async (senderID, recipientID, message) => {
+    sendMessageToBot: async (senderID, recipientID, message) => {
         try {
             const requestBody = {
                 message,
