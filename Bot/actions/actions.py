@@ -16,7 +16,6 @@ from custom_functions import get_link
 
 
 class ActionHelloWorld(Action):
-
     def name(self) -> Text:
         return "action_hello_world"
 
