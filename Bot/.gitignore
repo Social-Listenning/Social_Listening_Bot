@@ -2,3 +2,6 @@ venv
 uploads
 models
 .rasa
+
+__pycache__
+/test

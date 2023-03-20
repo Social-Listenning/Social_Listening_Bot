@@ -86,10 +86,9 @@ from rasa_sdk.executor import CollectingDispatcher
                 with open(file_location, 'w') as buffer: 
                     buffer.write(text_import_library)   
                     for key in domain['responses'].keys():
-                        key_name = key.replace("utter_", "").replace("_", " ").title().replace(" ", "")
-                        print(key_name)
+                        key_name = key.replace("_", " ").title().replace(" ", "")
                         class_name = 'Action' + key_name
-                        action_name = key.replace('utter', 'action')    
+                        action_name = 'action_' + key 
                         buffer.write(create_sample_action(class_name, action_name, key, "facebook", "comment"))
                 # print(data)
     return domain['responses']
