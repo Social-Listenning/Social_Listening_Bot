@@ -106,7 +106,7 @@ from rasa_sdk.executor import CollectingDispatcher
                 for story in stories['stories']:
                     for step in story['steps']:
                         for key, value in step.items():
-                            if (key == 'action'):
+                            if (key == 'action' and "utter_" not in value[0:6]):
                                 step[key] = 'action_' + value 
         if file.filename.endswith('rules.yml') or file.filename.endswith("rules.yaml"):
             file_content = await file.read()
@@ -115,6 +115,6 @@ from rasa_sdk.executor import CollectingDispatcher
                 for rule in rules['rules']:
                     for step in rule['steps']:
                         for key, value in step.items():
-                            if (key == 'action'):
+                            if (key == 'action' and "utter_" not in value[0:6]):
                                 step[key] = 'action_' + value             
-    return 
+    return
