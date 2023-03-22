@@ -32,7 +32,15 @@ class {class_name}(Action):
     def name(self) -> Text:
         return "{action_name}"
     def run(self, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]) -> List[Dict[Text, Any]]:
-        dispatcher.utter_template("{utter_key}", tracker, metadata={{"channel": "{channel}", "typeChat": "{type_chat}"}})
+        entities = tracker.latest_message['entities']
+        for entity in entities:
+            entity_name = entity['entity']
+            entity_value = entity['value']
+            tracker.set_slot(entity_name, entity_value)
+            # SlotSet(entity_name, entity_value)
+
+        slot_values = tracker.slots.get_all()
+        dispatcher.utter_template("{utter_key}", tracker, metadata={{"channel": "{channel}", "typeChat": "{type_chat}"}}, **slot_values)
         return []
 """
     return action_temp
@@ -89,6 +97,24 @@ from rasa_sdk.executor import CollectingDispatcher
                         key_name = key.replace("_", " ").title().replace(" ", "")
                         class_name = 'Action' + key_name
                         action_name = 'action_' + key 
+                        domain["actions"].append(action_name)
                         buffer.write(create_sample_action(class_name, action_name, key, "facebook", "comment"))
-                # print(data)
-    return domain['responses']
+        if file.filename.endswith('stories.yml') or file.filename.endswith("stories.yaml"):
+            file_content = await file.read()
+            stories = yaml.safe_load(file_content)
+            if stories is not None:
+                for story in stories['stories']:
+                    for step in story['steps']:
+                        for key, value in step.items():
+                            if (key == 'action'):
+                                step[key] = 'action_' + value 
+        if file.filename.endswith('rules.yml') or file.filename.endswith("rules.yaml"):
+            file_content = await file.read()
+            rules = yaml.safe_load(file_content)
+            if rules is not None:
+                for rule in rules['rules']:
+                    for step in rule['steps']:
+                        for key, value in step.items():
+                            if (key == 'action'):
+                                step[key] = 'action_' + value             
+    return 
