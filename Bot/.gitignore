@@ -3,5 +3,7 @@ uploads
 models
 .rasa
 
-__pycache__
+*/__pycache__/
+/__pycache__
 /test
+new_data.yaml
