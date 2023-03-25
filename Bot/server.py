@@ -33,17 +33,132 @@ class {class_name}(Action):
         return "{action_name}"
     def run(self, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]) -> List[Dict[Text, Any]]:
         entities = tracker.latest_message['entities']
+        print(entities)        
+        
+        confidence_of_entities = {{}}        
         for entity in entities:
-            entity_name = entity['entity']
-            entity_value = entity['value']
-            tracker.set_slot(entity_name, entity_value)
-            # SlotSet(entity_name, entity_value)
+            entity_name = entity.get('entity')  
+            entity_value = entity.get('value')         
+            confidence_entity = entity.get('confidence_entity')
+            print('confidence_entity: ', confidence_entity)
+            if tracker.slots.get(entity_name) is None:
+                tracker.slots[entity_name] = entity_value
+                confidence_of_entities[entity_name] = confidence_entity
+            else:
+                if confidence_of_entities.get(entity_name) is not None and confidence_entity > confidence_of_entities.get(entity_name):
+                    tracker.slots[entity_name] = entity_value
+                    confidence_of_entities[entity_name] = confidence_entity
+            print("Slot of entity: ", tracker.slots[entity_name])
 
-        slot_values = tracker.slots.get_all()
-        dispatcher.utter_template("{utter_key}", tracker, metadata={{"channel": "{channel}", "typeChat": "{type_chat}"}}, **slot_values)
+        dispatcher.utter_template("{utter_key}", tracker, metadata={{"channel": "{channel}", "typeChat": "{type_chat}"}}, **dict(tracker.slots.items()))        
         return []
 """
     return action_temp
+
+@app.post('/create-file')
+async def create_handle_action_file(botId: str = Form(), file: Optional[UploadFile] = File(...)):
+    data_file = None
+    text_import_library = f"""
+from typing import Any, Text, Dict, List
+from rasa_sdk import Action, Tracker
+from rasa_sdk.events import SlotSet
+from rasa_sdk.executor import CollectingDispatcher
+from operator import itemgetter
+"""
+    if file.filename.endswith('domain.yml') or file.filename.endswith("domain.yaml"):
+        file_content = await file.read()
+        data_file = yaml.safe_load(file_content)
+        if data_file is not None:
+            filename = "actions.py"
+            folder_location = os.path.join("uploads", botId, "actions")
+            print(folder_location)
+            if not os.path.exists(folder_location):
+                os.makedirs(folder_location)
+            file_location = os.path.join(folder_location, filename)
+            with open(file_location, 'w') as buffer: 
+                buffer.write(text_import_library)   
+                for key in data_file['responses'].keys():
+                    key_name = key.replace("_", " ").title().replace(" ", "")
+                    class_name = 'Action' + key_name
+                    action_name = 'action_' + key 
+                    data_file["actions"].append(action_name)
+                    buffer.write(create_sample_action(class_name, action_name, key, "facebook", "comment"))
+    if file.filename.endswith('stories.yml') or file.filename.endswith("stories.yaml"):
+        file_content = await file.read()
+        data_file = yaml.safe_load(file_content)
+        return data_file
+        if data_file is not None:
+            for story in data_file['stories']:
+                for step in story['steps']:
+                    for key, value in step.items():
+                        if (key == 'action' and "utter_" in value[0:6]):
+                            step[key] = 'action_' + value 
+    if file.filename.endswith('rules.yml') or file.filename.endswith("rules.yaml"):
+        file_content = await file.read()
+        data_file = yaml.safe_load(file_content)
+        if data_file is not None:
+            for rule in data_file['rules']:
+                for step in rule['steps']:
+                    for key, value in step.items():
+                        if (key == 'action' and "utter_" in value[0:6]):
+                            step[key] = 'action_' + value
+    if data_file is None:  
+        return data_file
+    # file.seek(0)
+    # yaml.dump(data_file, file)
+    # print(data_file)
+    # file.truncate()
+    return data_file
+
+async def create_handle_action(botId: str, pathFile: str):
+    data_file = None
+    text_import_library = f"""
+from typing import Any, Text, Dict, List
+from rasa_sdk import Action, Tracker
+from rasa_sdk.events import SlotSet
+from rasa_sdk.executor import CollectingDispatcher
+"""
+    with open(pathFile, "r", encoding='utf-8') as file:
+        if file.name.endswith('domain.yml') or file.name.endswith("domain.yaml"):
+            data_file = yaml.safe_load(file)
+            if data_file is not None:
+                filename = "actions.py"
+                folder_location = os.path.join("uploads", botId, "actions")
+                if not os.path.exists(folder_location):
+                    os.makedirs(folder_location)
+                file_location = os.path.join(folder_location, filename)
+                with open(file_location, 'w') as buffer: 
+                    buffer.write(text_import_library)   
+                    for key in data_file['responses'].keys():
+                        key_name = key.replace("_", " ").title().replace(" ", "")
+                        class_name = 'Action' + key_name
+                        action_name = 'action_' + key 
+                        data_file["actions"].append(action_name)
+                        buffer.write(create_sample_action(class_name, action_name, key, "facebook", "comment"))
+        if file.name.endswith('stories.yml') or file.name.endswith("stories.yaml"):
+            data_file = yaml.safe_load(file)
+            if data_file is not None:
+                for story in data_file['stories']:
+                    for step in story['steps']:
+                        for key, value in step.items():
+                            if (key == 'action' and "utter_" in value[0:6]):
+                                step[key] = 'action_' + value
+        if file.name.endswith('rules.yml') or file.name.endswith("rules.yaml"):
+            print(file.name)
+            data_file = yaml.safe_load(file)
+            if data_file is not None:
+                for rule in data_file['rules']:
+                    for step in rule['steps']:
+                        for key, value in step.items():
+                            if (key == 'action' and "utter_" in value[0:6]):
+                                step[key] = 'action_' + value 
+    if data_file is None:  
+        return 
+    with open(pathFile, 'w') as file:
+        yaml.dump(data_file, file)
+    # file.truncate()
+    return 
+
 
 def train_model(model_name, domain, config, training_files, model_path):
     return train(domain=domain, config=config, training_files=training_files, output=model_path, fixed_model_name=model_name)
@@ -67,54 +182,10 @@ async def create_upload_file(botId: str = Form(), files: List[Optional[UploadFil
                             setattr(fileTrain, fileName, file_location)
                         else:
                             fileTrain.training_files.append(file_location)
+                    await create_handle_action(botId, file_location)
                 except yaml.YAMLError as exc:
-                    raise HTTPException(status_code=400, detail="File YAML không hợp lệ") from exc
+                    raise HTTPException(status_code=400, detail="Invalid YAML file") from exc
         future = executor.submit(train_model, fileTrain.fixed_model_name, fileTrain.domain, fileTrain.config, fileTrain.training_files, model_path)
         result = await asyncio.wrap_future(future)
         return "Successful training"
 
-@app.post('/create-file')
-async def create_action(files: List[Optional[UploadFile]] = File(...)):
-    text_import_library = f"""
-from typing import Any, Text, Dict, List
-from rasa_sdk import Action, Tracker
-from rasa_sdk.events import SlotSet
-from rasa_sdk.executor import CollectingDispatcher
-"""
-    for file in files:
-        if file.filename.endswith('domain.yml') or file.filename.endswith("domain.yaml"):
-            file_content = await file.read()
-            domain = yaml.safe_load(file_content)
-            if domain is not None:
-                filename = "actions.py"
-                folder_location = os.path.join("test/action")
-                if not os.path.exists(folder_location):
-                    os.makedirs(folder_location)
-                file_location = os.path.join(folder_location, filename)
-                with open(file_location, 'w') as buffer: 
-                    buffer.write(text_import_library)   
-                    for key in domain['responses'].keys():
-                        key_name = key.replace("_", " ").title().replace(" ", "")
-                        class_name = 'Action' + key_name
-                        action_name = 'action_' + key 
-                        domain["actions"].append(action_name)
-                        buffer.write(create_sample_action(class_name, action_name, key, "facebook", "comment"))
-        if file.filename.endswith('stories.yml') or file.filename.endswith("stories.yaml"):
-            file_content = await file.read()
-            stories = yaml.safe_load(file_content)
-            if stories is not None:
-                for story in stories['stories']:
-                    for step in story['steps']:
-                        for key, value in step.items():
-                            if (key == 'action' and "utter_" not in value[0:6]):
-                                step[key] = 'action_' + value 
-        if file.filename.endswith('rules.yml') or file.filename.endswith("rules.yaml"):
-            file_content = await file.read()
-            rules = yaml.safe_load(file_content)
-            if rules is not None:
-                for rule in rules['rules']:
-                    for step in rule['steps']:
-                        for key, value in step.items():
-                            if (key == 'action' and "utter_" not in value[0:6]):
-                                step[key] = 'action_' + value             
-    return

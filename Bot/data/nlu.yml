@@ -94,6 +94,7 @@ nlu:
     - lookup: product_name
       examples: |
           - iPhone 13
+          - Gundam
           - Samsung Galaxy S21
           - Google Pixel 6
           - OnePlus 9
@@ -573,6 +574,7 @@ nlu:
 
     - intent: introduce_name
       examples: |
+          - I am {user_name}.
           - My name is {user_name}.
           - You can call me {user_name}.
           - I go by {user_name}.
@@ -637,57 +639,57 @@ nlu:
           - Call me {user_name},
           - [Azu](user_name)
           - [Ark]{"entity": "user_name"}
-          - Hi, my name is {name}. Nice to meet you.
-          - I'm {name}, and I'm here to help.
-          - I am called {name}.
-          - {name} is my name.
-          - You can call me {name}.
-          - Hi, I'm {name}.
-          - Hey there, the name's {name}.
-          - Greetings, I go by {name}.
-          - Nice to meet you, I'm {name}.
-          - Howdy, I'm {name}.
-          - The name is {name}, pleased to make your acquaintance.
-          - Hello, my name is {name}.
-          - It's nice to meet you, my name is {name}.
-          - Hello there, I'm {name}.
-          - Bonjour, je m'appelle {name} (Hello, my name is {name} in French).
-          - Hola, me llamo {name} (Hello, my name is {name} in Spanish).
-          - Hallo, ich heiße {name} (Hello, my name is {name} in German).
-          - Salut, je suis {name} (Hi, I am {name} in French).
-          - Hi, my name is {name}, what's yours?
-          - You're talking to {name}, how can I help you?
-          - {name} here, how can I assist you today?
-          - At your service, I'm {name}.
-          - Pleased to meet you, I'm {name}, and you are?
-          - My moniker is {name}, how may I assist you?
-          - Good day, I'm {name}.
-          - Greetings, I'm {name}, and you are?
-          - Yo, I'm {name}.
-          - You can call me {name}, how can I help you?
-          - My name is {name}, what can I do for you?
-          - Hey, I'm {name}, what brings you here?
-          - Hello, I'm {name}, how may I assist you?
-          - Hi, I'm {name}, what can I help you with?
-          - The name's {name}, how can I be of service?
-          - Hi there, I'm {name}, what's on your mind?
-          - G'day, I'm {name}, how can I assist you?
-          - Hi, my name is {name}, nice to meet you.
-          - You've reached {name}, how may I assist you?
-          - Hello, I'm {name}, and you are?
-          - Hey, I'm {name}, what's up?
-          - Hello, I'm {name}, what can I help you with?
-          - You're talking to {name}, how can I help you today?
-          - Howdy, I'm {name}, and you are?
-          - Bonjour, my name is {name}, comment ça va? (Hello, my name is {name}, how are you doing? in French).
-          - Hola, mi nombre es {name}, cómo estás? (Hello, my name is {name}, how are you doing? in Spanish).
-          - Hallo, mein Name ist {name}, wie geht's? (Hello, my name is {name}, how are you doing? in German).
-          - Salut, je m'appelle {name}, comment vas-tu? (Hi, I am {name}, how are you doing? in French).
-          - It's {name}, nice to make your acquaintance.
-          - Hello, this is {name}, how may I assist you?
-          - My name is {name}, what brings you here today?
-          - Hello, I'm {name}, pleased to meet you.
-          - Hey, it's {name}, what can I do for you?
+          - Hi, my name is {user_name}. Nice to meet you.
+          - I'm {user_name}, and I'm here to help.
+          - I am called {user_name}.
+          - {user_name} is my name.
+          - You can call me {user_name}.
+          - Hi, I'm {user_name}.
+          - Hey there, the name's {user_name}.
+          - Greetings, I go by {user_name}.
+          - Nice to meet you, I'm {user_name}.
+          - Howdy, I'm {user_name}.
+          - The name is {user_name}, pleased to make your acquaintance.
+          - Hello, my name is {user_name}.
+          - It's nice to meet you, my name is {user_name}.
+          - Hello there, I'm {user_name}.
+          - Bonjour, je m'appelle {user_name} (Hello, my name is {user_name} in French).
+          - Hola, me llamo {user_name} (Hello, my name is {user_name} in Spanish).
+          - Hallo, ich heiße {user_name} (Hello, my name is {user_name} in German).
+          - Salut, je suis {user_name} (Hi, I am {user_name} in French).
+          - Hi, my name is {user_name}, what's yours?
+          - You're talking to {user_name}, how can I help you?
+          - {user_name} here, how can I assist you today?
+          - At your service, I'm {user_name}.
+          - Pleased to meet you, I'm {user_name}, and you are?
+          - My moniker is {user_name}, how may I assist you?
+          - Good day, I'm {user_name}.
+          - Greetings, I'm {user_name}, and you are?
+          - Yo, I'm {user_name}.
+          - You can call me {user_name}, how can I help you?
+          - My name is {user_name}, what can I do for you?
+          - Hey, I'm {user_name}, what brings you here?
+          - Hello, I'm {user_name}, how may I assist you?
+          - Hi, I'm {user_name}, what can I help you with?
+          - The name's {user_name}, how can I be of service?
+          - Hi there, I'm {user_name}, what's on your mind?
+          - G'day, I'm {user_name}, how can I assist you?
+          - Hi, my name is {user_name}, nice to meet you.
+          - You've reached {user_name}, how may I assist you?
+          - Hello, I'm {user_name}, and you are?
+          - Hey, I'm {user_name}, what's up?
+          - Hello, I'm {user_name}, what can I help you with?
+          - You're talking to {user_name}, how can I help you today?
+          - Howdy, I'm {user_name}, and you are?
+          - Bonjour, my name is {user_name}, comment ça va? (Hello, my name is {user_name}, how are you doing? in French).
+          - Hola, mi nombre es {user_name}, cómo estás? (Hello, my name is {user_name}, how are you doing? in Spanish).
+          - Hallo, mein Name ist {user_name}, wie geht's? (Hello, my name is {user_name}, how are you doing? in German).
+          - Salut, je m'appelle {user_name}, comment vas-tu? (Hi, I am {user_name}, how are you doing? in French).
+          - It's {user_name}, nice to make your acquaintance.
+          - Hello, this is {user_name}, how may I assist you?
+          - My name is {user_name}, what brings you here today?
+          - Hello, I'm {user_name}, pleased to meet you.
+          - Hey, it's {user_name}, what can I do for you?
 
     - intent: ask_price
       examples: |
@@ -1258,4 +1260,3 @@ nlu:
           - I can't believe how poorly this has been handled.
           - I'm extremely frustrated with the lack of progress.
           - I'm very dissatisfied with the customer service.
-

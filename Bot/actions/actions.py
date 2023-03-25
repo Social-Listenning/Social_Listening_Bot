@@ -12,7 +12,7 @@ from typing import Any, Text, Dict, List
 from rasa_sdk import Action, Tracker
 from rasa_sdk.events import SlotSet
 from rasa_sdk.executor import CollectingDispatcher
-from custom_functions import get_link
+# from custom_functions import get_link
 
 
 class ActionHelloWorld(Action):
@@ -28,16 +28,16 @@ class ActionHelloWorld(Action):
         return []
 
 
-class GetLink(Action):
-    def name(self):
-        return "action_get_link"
+# class GetLink(Action):
+#     def name(self):
+#         return "action_get_link"
 
-    def run(self, dispatcher, tracker, domain):
-        # link_id = tracker.link_id
-        link = get_link()
-        print(link)
-        dispatcher.utter_message(response="utter_link_info", link=link)
+#     def run(self, dispatcher, tracker, domain):
+#         # link_id = tracker.link_id
+#         link = get_link()
+#         print(link)
+#         dispatcher.utter_message(response="utter_link_info", link=link)
 
-        return []
+#         return []
         # set user info slots
         # return [SlotSet("link", link)]

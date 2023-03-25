@@ -85,16 +85,16 @@ responses:
         - text: "Hello {user_name}, is there a specific product you're curious about the price of?"
 
     utter_answer_price:
-        - text: 'The current price of {product_name} is {product_price}.'
-        - text: '{product_name} costs {product_price}.'
-        - text: 'The price of {product_name} is {product_price} today.'
-        - text: '{product_price} is the current price of {product_name}.'
-        - text: 'If you want to buy {product_name}, it will cost you {product_price}.'
-        - text: 'The cost of {product_name} is {product_price} at the moment.'
-        - text: '{product_name} is priced at {product_price} right now.'
-        - text: '{product_price} is how much you will need to pay for {product_name}.'
-        - text: 'The price for {product_name} is {product_price} at the moment.'
-        - text: '{product_price} is the price of {product_name} as of now.'
+        - text: 'The current price of {product_name} is 10000 USD.'
+        - text: '{product_name} costs 10000 USD.'
+        - text: 'The price of {product_name} is 10000 USD today.'
+        - text: '10000 USD is the current price of {product_name}.'
+        - text: 'If you want to buy {product_name}, it will cost you 10000 USD.'
+        - text: 'The cost of {product_name} is 10000 USD at the moment.'
+        - text: '{product_name} is priced at 10000 USD right now.'
+        - text: '10000 USD is how much you will need to pay for {product_name}.'
+        - text: 'The price for {product_name} is 10000 USD at the moment.'
+        - text: '10000 USD is the price of {product_name} as of now.'
 
     utter_sorry:
         - text: "I'm sorry, I didn't quite understand what you were asking."
@@ -125,7 +125,13 @@ responses:
     #     - text: "Tạm biệt {name}!\nHãy quay lại với Bot khi {name} cần nhé!"
 
 actions:
-    - action_get_link
+    # - action_get_link
+    # - action_utter_greet
+    # - action_utter_introduce_name
+    # - action_utter_answer_price
+    # - action_utter_sorry
+    # - action_utter_goodbye
+    - action_hello_world
 
 session_config:
     session_expiration_time: 60
