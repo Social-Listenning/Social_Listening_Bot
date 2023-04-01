@@ -24,6 +24,7 @@ module.exports = {
     sendToBot: async (req, res) => {
         try {
             let body = req.body;
+            console.log(body.entry[0].messaging);
             if (body.object === 'page') {
                 // Iterate over each entry - there may be multiple if batched
                 body.entry.forEach(async function (entry) {

@@ -1,13 +1,24 @@
 from typing import Optional, List
-from fastapi import Form, FastAPI, File, UploadFile, HTTPException
+from fastapi import Form, FastAPI, File, UploadFile, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from rasa.model_training import train
+from rasa.core.agent import Agent
+from rasa.utils.endpoints import EndpointConfig
+from rasa.shared.constants import DEFAULT_CORE_SUBDIRECTORY_NAME, DEFAULT_NLU_FALLBACK_INTENT_NAME
+from rasa.core.http_interpreter import RasaNLUHttpInterpreter
+from rasa.core.channels import UserMessage
+
+from rasa.core.lock_store import InMemoryLockStore
+from rasa.core.nlg import NaturalLanguageGenerator
+from rasa.core.tracker_store import InMemoryTrackerStore
+from rasa.core.processor import MessageProcessor
+
 import yaml
 import shutil
 import os
 import concurrent.futures
 import asyncio
-import re
+import glob
 
 app = FastAPI()
 origins = ["*"]
@@ -19,13 +30,25 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+action_endpoint = EndpointConfig(url="http://localhost:5055/webhook")
+http_interpreter = RasaNLUHttpInterpreter(EndpointConfig(
+    url="http://localhost:5005/",
+    params={},
+    headers={
+        "Content-Type": "application/json",
+    },
+    basic_auth=None,
+))
+agentList = {}
+
 class FileTrain:
     def __init__(self, fixed_model_name="default_model", domain=None, config=None, training_files=[]):
         self.fixed_model_name = fixed_model_name
         self.domain = domain
         self.config = config
         self.training_files = training_files
-
+    
 def create_sample_action(class_name, action_name, utter_key, channel, type_chat): 
     action_temp = f"""
 class {class_name}(Action):
@@ -55,61 +78,22 @@ class {class_name}(Action):
 """
     return action_temp
 
-@app.post('/create-file')
-async def create_handle_action_file(botId: str = Form(), file: Optional[UploadFile] = File(...)):
-    data_file = None
-    text_import_library = f"""
-from typing import Any, Text, Dict, List
-from rasa_sdk import Action, Tracker
-from rasa_sdk.events import SlotSet
-from rasa_sdk.executor import CollectingDispatcher
-from operator import itemgetter
-"""
-    if file.filename.endswith('domain.yml') or file.filename.endswith("domain.yaml"):
-        file_content = await file.read()
-        data_file = yaml.safe_load(file_content)
-        if data_file is not None:
-            filename = "actions.py"
-            folder_location = os.path.join("uploads", botId, "actions")
-            print(folder_location)
-            if not os.path.exists(folder_location):
-                os.makedirs(folder_location)
-            file_location = os.path.join(folder_location, filename)
-            with open(file_location, 'w') as buffer: 
-                buffer.write(text_import_library)   
-                for key in data_file['responses'].keys():
-                    key_name = key.replace("_", " ").title().replace(" ", "")
-                    class_name = 'Action' + key_name
-                    action_name = 'action_' + key 
-                    data_file["actions"].append(action_name)
-                    buffer.write(create_sample_action(class_name, action_name, key, "facebook", "comment"))
-    if file.filename.endswith('stories.yml') or file.filename.endswith("stories.yaml"):
-        file_content = await file.read()
-        data_file = yaml.safe_load(file_content)
-        return data_file
-        if data_file is not None:
-            for story in data_file['stories']:
-                for step in story['steps']:
-                    for key, value in step.items():
-                        if (key == 'action' and "utter_" in value[0:6]):
-                            step[key] = 'action_' + value 
-    if file.filename.endswith('rules.yml') or file.filename.endswith("rules.yaml"):
-        file_content = await file.read()
-        data_file = yaml.safe_load(file_content)
-        if data_file is not None:
-            for rule in data_file['rules']:
-                for step in rule['steps']:
-                    for key, value in step.items():
-                        if (key == 'action' and "utter_" in value[0:6]):
-                            step[key] = 'action_' + value
-    if data_file is None:  
-        return data_file
-    # file.seek(0)
-    # yaml.dump(data_file, file)
-    # print(data_file)
-    # file.truncate()
-    return data_file
+def load_all_model():
+    # Define the path to the models directory
+    models_dir = 'models/'
+    # Get a list of all the .tar.gz files in the models directory
+    model_files = glob.glob(models_dir + '*.tar.gz')
+    # Iterate through the list of model files
+    for model_file in model_files:
+        filename = os.path.basename(model_file)
+        model_path = os.path.join("models", filename)
+        if os.path.exists(model_path):
+            model_id =  os.path.splitext(os.path.splitext(os.path.basename(filename))[0])[0]
+            agentList[model_id] = Agent.load(model_path, action_endpoint=action_endpoint)
 
+def train_model(model_name, domain, config, training_files, model_path):
+    return train(domain=domain, config=config, training_files=training_files, output=model_path, fixed_model_name=model_name)
+    
 async def create_handle_action(botId: str, pathFile: str):
     data_file = None
     text_import_library = f"""
@@ -159,19 +143,14 @@ from rasa_sdk.executor import CollectingDispatcher
     # file.truncate()
     return 
 
-
-def train_model(model_name, domain, config, training_files, model_path):
-    return train(domain=domain, config=config, training_files=training_files, output=model_path, fixed_model_name=model_name)
-
 @app.post('/train')
-async def create_upload_file(botId: str = Form(), files: List[Optional[UploadFile]] = File(...)):
+async def create_upload_file(bot_id: str = Form(), files: List[Optional[UploadFile]] = File(...)):
     with concurrent.futures.ThreadPoolExecutor() as executor:
-        model_path = "models/"
-        fileTrain = FileTrain(botId, '', '', [])    
+        fileTrain = FileTrain(bot_id, '', '', [])    
         for file in files:
             if file.filename.endswith('.yml') or file.filename.endswith(".yaml"):
                 try:            
-                    folder_location = os.path.join("uploads", botId)
+                    folder_location = os.path.join("uploads", bot_id)
                     if not os.path.exists(folder_location):
                         os.makedirs(folder_location)
                     file_location = os.path.join(folder_location, file.filename)
@@ -182,10 +161,36 @@ async def create_upload_file(botId: str = Form(), files: List[Optional[UploadFil
                             setattr(fileTrain, fileName, file_location)
                         else:
                             fileTrain.training_files.append(file_location)
-                    await create_handle_action(botId, file_location)
+                    await create_handle_action(bot_id, file_location)
                 except yaml.YAMLError as exc:
                     raise HTTPException(status_code=400, detail="Invalid YAML file") from exc
-        future = executor.submit(train_model, fileTrain.fixed_model_name, fileTrain.domain, fileTrain.config, fileTrain.training_files, model_path)
+        future = executor.submit(train_model, fileTrain.fixed_model_name, fileTrain.domain, fileTrain.config, fileTrain.training_files, "models/")
         result = await asyncio.wrap_future(future)
+        model_path = os.path.join("models", bot_id + ".tar.gz")
+        agentList[bot_id] = Agent.load(model_path, action_endpoint=action_endpoint)
+        return result
         return "Successful training"
 
+@app.post('/webhooks/rasa')
+async def receive_message(request: Request):
+    message = await request.json()
+    if message.get('receive_id') in agentList:
+        response = await agentList.get(message.get('receive_id')).handle_text(text_message=message.get('message'), sender_id=message.get('sender_id'))
+        print('--------------------------------')
+        print("response:")
+        print(response)
+        print('--------------------------------')           
+        if response:
+            if len(response) == 0:
+                return {"response": "Sorry, I don't understand"}
+            return {"response": response[0]["text"]}
+        else:
+            fallback_response = await agentList.get(message.get('receive_id')).handle_text(DEFAULT_NLU_FALLBACK_INTENT_NAME, sender_id=message.get('sender_id'))
+            print("fallback_response: ", fallback_response)
+            if len(fallback_response) == 0:
+                return {"response": "Sorry, I don't understand"}
+            return {"response": fallback_response[0]["text"]}
+    return {"response": f"""Model {message.get('receive_id')} not exist"""}
+
+load_all_model()
+print(agentList)

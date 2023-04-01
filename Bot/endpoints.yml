@@ -39,3 +39,34 @@ action_endpoint:
 #  username: username
 #  password: password
 #  queue: queue
+
+# models:
+#     #     default:
+#     #         remote: false
+#     #         path: ./models/
+#     # ABC:
+#     remote: false
+#     url: '/models/ABC'
+
+# models:
+#     default:
+#         # Set `remote` to `false` if you are using a locally stored model
+#         # Set `remote` to `true` if you are using a model hosted on a server
+#         remote: false
+#         # Set `path` to the path of the directory containing your trained model files
+#         path: '/models/ABC.tar.gz'
+# mymodel:
+#     path: '/models/ABC.tar.gz'
+
+# model_server:
+#             start_command: "rasa run --enable-api --model ABC --cors '*' --debug"
+# url: http://localhost:5005/models/ABC
+# wait_time_between_pulls: 10
+# nlu:
+#     url: http://localhost:5005/
+#     model: 'models/'
+#     response_timeout: 10
+
+# localhost:
+#     url: 'http://localhost:5005'
+#     nlu: 'http://localhost:5005/model'
