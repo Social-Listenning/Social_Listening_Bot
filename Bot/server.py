@@ -56,7 +56,7 @@ class FileTrain:
         self.config = config
         self.training_files = training_files
     
-def create_sample_action(class_name, action_name, utter_key, channel, type_chat): 
+def create_sample_action(class_name, action_name, utter_key): 
     action_temp = f"""
 class {class_name}(Action):
     def name(self) -> Text:
@@ -80,7 +80,7 @@ class {class_name}(Action):
                     confidence_of_entities[entity_name] = confidence_entity
             print("Slot of entity: ", tracker.slots[entity_name])
 
-        dispatcher.utter_message(response="{utter_key}", metadata={{"channel": "{channel}", "typeChat": "{type_chat}"}}, **dict(tracker.slots.items()))        
+        dispatcher.utter_message(response="{utter_key}", **dict(tracker.slots.items()))        
         return []
 """
     return action_temp
@@ -124,7 +124,7 @@ async def create_file_train(pathFile: str):
                             data_file["actions"].append(action_name)
                             if action_name not in utter_action_list:
                                 utter_action_list.append(action_name)
-                                buffer.write(create_sample_action(class_name, action_name, key, "facebook", "comment"))
+                                buffer.write(create_sample_action(class_name, action_name, key))
 
             if file.name.endswith("stories.yml") or file.name.endswith("stories.yaml"):
                 data_file = yaml.safe_load(file)
@@ -179,7 +179,7 @@ from rasa_sdk.executor import CollectingDispatcher
                                 data_file["actions"].append(action_name)
                                 if action_name not in utter_action_list:
                                     utter_action_list.append(action_name)
-                                    buffer.write(create_sample_action(class_name, action_name, key, "facebook", "comment"))
+                                    buffer.write(create_sample_action(class_name, action_name, key))
 
 @app.post('/train')
 async def create_upload_file(bot_id: str = Form(), files: List[Optional[UploadFile]] = File(...)):
@@ -212,23 +212,31 @@ async def create_upload_file(bot_id: str = Form(), files: List[Optional[UploadFi
 @app.post('/webhooks/rasa')
 async def receive_message(request: Request):
     message = await request.json()
-    if message.get('receive_id') in agent_list:
-        response = await agent_list.get(message.get('receive_id')).handle_text(text_message=message.get('message'), sender_id=message.get('sender_id'))
-        print('--------------------------------')
-        print("response:")
-        print(response)
-        print('--------------------------------')           
+    result = {
+        "sender_id": message.get("receive_id"),
+        "receive_id": message.get("sender_id"),
+        "message": "",
+        "channel": message.get("channel"),
+        "type_chat": message.get("type_chat"),
+    }
+    if message.get("receive_id") in agent_list:
+        response = await agent_list.get(message.get("receive_id")).handle_text(text_message=message.get("message"), sender_id=message.get("sender_id"))
+        print("--------------------------------")
+        print("response:", response)
+        print("--------------------------------")           
         if response:
             if len(response) == 0:
-                return {"response": "Sorry, I don't understand"}
-            return {"response": response[0]["text"]}
+                result["message"] = "Sorry, I don't understand"
+            result["message"] = response[0]["text"]
         else:
-            fallback_response = await agent_list.get(message.get('receive_id')).handle_text(DEFAULT_NLU_FALLBACK_INTENT_NAME, sender_id=message.get('sender_id'))
+            fallback_response = await agent_list.get(message.get("receive_id")).handle_text(DEFAULT_NLU_FALLBACK_INTENT_NAME, sender_id=message.get("sender_id"))
             print("fallback_response: ", fallback_response)
             if len(fallback_response) == 0:
-                return {"response": "Sorry, I don't understand"}
-            return {"response": fallback_response[0]["text"]}
-    return {"response": f"""Model {message.get('receive_id')} not exist"""}
+                result["message"] = "Sorry, I don't understand"
+            result["message"] = fallback_response[0]["text"]
+    else:
+        result["message"] = f"""Model {message.get('receive_id')} not exist"""
+    return result
 
 create_file_custom_action()
 print(utter_action_list)
