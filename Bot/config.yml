@@ -8,6 +8,8 @@ pipeline:
       use_regexes: true
     - name: RegexEntityExtractor
     - name: CRFEntityExtractor
+      features:
+          - ['low', 'title', 'upper', 'digit', 'pattern']
     - name: LexicalSyntacticFeaturizer
     - name: CountVectorsFeaturizer
     - name: CountVectorsFeaturizer
