@@ -1,6 +1,7 @@
 venv
 venv2
 uploads
+actions
 models
 .rasa
 out.log
