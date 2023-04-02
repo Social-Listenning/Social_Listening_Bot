@@ -129,7 +129,7 @@ async def create_file_train(pathFile: str):
 def train_model(model_name, domain, config, training_files, model_path):
     return train(domain=domain, config=config, training_files=training_files, output=model_path, fixed_model_name=model_name)
 
-def create_file_custom_action():
+async def create_file_custom_action():
     text_import_library = f"""
 from typing import Any, Text, Dict, List
 from rasa_sdk import Action, Tracker
