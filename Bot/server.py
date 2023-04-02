@@ -4,14 +4,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from rasa.model_training import train
 from rasa.core.agent import Agent
 from rasa.utils.endpoints import EndpointConfig
-from rasa.shared.constants import DEFAULT_CORE_SUBDIRECTORY_NAME, DEFAULT_NLU_FALLBACK_INTENT_NAME
+from rasa.shared.constants import DEFAULT_NLU_FALLBACK_INTENT_NAME
 from rasa.core.http_interpreter import RasaNLUHttpInterpreter
-from rasa.core.channels import UserMessage
-
-from rasa.core.lock_store import InMemoryLockStore
-from rasa.core.nlg import NaturalLanguageGenerator
-from rasa.core.tracker_store import InMemoryTrackerStore
-from rasa.core.processor import MessageProcessor
 
 import yaml
 import shutil
@@ -29,13 +23,13 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 text_import_library = f"""
 from typing import Any, Text, Dict, List
 from rasa_sdk import Action, Tracker
 from rasa_sdk.events import SlotSet
 from rasa_sdk.executor import CollectingDispatcher
 """
-
 
 action_endpoint = EndpointConfig(url="http://localhost:5055/webhook")
 http_interpreter = RasaNLUHttpInterpreter(EndpointConfig(
@@ -46,6 +40,7 @@ http_interpreter = RasaNLUHttpInterpreter(EndpointConfig(
     },
     basic_auth=None,
 ))
+
 agent_list = {}
 utter_action_list = []
 
@@ -57,7 +52,7 @@ class FileTrain:
         self.training_files = training_files
     
 def create_sample_action(class_name, action_name, utter_key): 
-    action_temp = f"""
+    return f"""
 class {class_name}(Action):
     def name(self) -> Text:
         return "{action_name}"
@@ -83,24 +78,7 @@ class {class_name}(Action):
         dispatcher.utter_message(response="{utter_key}", **dict(tracker.slots.items()))        
         return []
 """
-    return action_temp
 
-def load_all_model():
-    # Define the path to the models directory
-    models_dir = 'models/'
-    # Get a list of all the .tar.gz files in the models directory
-    model_files = glob.glob(models_dir + '*.tar.gz')
-    # Iterate through the list of model files
-    for model_file in model_files:
-        filename = os.path.basename(model_file)
-        model_path = os.path.join("models", filename)
-        if os.path.exists(model_path):
-            model_id =  os.path.splitext(os.path.splitext(os.path.basename(filename))[0])[0]
-            agent_list[model_id] = Agent.load(model_path, action_endpoint=action_endpoint)
-
-def train_model(model_name, domain, config, training_files, model_path):
-    return train(domain=domain, config=config, training_files=training_files, output=model_path, fixed_model_name=model_name)
-    
 async def create_file_train(pathFile: str):
     data_file = None
     folder_actions_location = os.path.join("actions")
@@ -148,6 +126,9 @@ async def create_file_train(pathFile: str):
         with open(pathFile, 'w') as file:
             yaml.dump(data_file, file)
 
+def train_model(model_name, domain, config, training_files, model_path):
+    return train(domain=domain, config=config, training_files=training_files, output=model_path, fixed_model_name=model_name)
+
 def create_file_custom_action():
     text_import_library = f"""
 from typing import Any, Text, Dict, List
@@ -183,8 +164,21 @@ from rasa_sdk.executor import CollectingDispatcher
                                     utter_action_list.append(action_name)
                                     buffer.write(create_sample_action(class_name, action_name, key))
 
+def load_all_model():
+    # Define the path to the models directory
+    models_dir = 'models/'
+    # Get a list of all the .tar.gz files in the models directory
+    model_files = glob.glob(models_dir + '*.tar.gz')
+    # Iterate through the list of model files
+    for model_file in model_files:
+        filename = os.path.basename(model_file)
+        model_path = os.path.join("models", filename)
+        if os.path.exists(model_path):
+            model_id = os.path.splitext(os.path.splitext(os.path.basename(filename))[0])[0]
+            agent_list[model_id] = Agent.load(model_path, action_endpoint=action_endpoint)
+
 @app.post('/train')
-async def create_upload_file(bot_id: str = Form(), files: List[Optional[UploadFile]] = File(...)):
+async def training_model(bot_id: str = Form(), files: List[Optional[UploadFile]] = File(...)):
     with concurrent.futures.ThreadPoolExecutor() as executor:
         folder_location = os.path.join("uploads", bot_id)
         if not os.path.exists(folder_location):
@@ -212,35 +206,36 @@ async def create_upload_file(bot_id: str = Form(), files: List[Optional[UploadFi
         return "Successful training"
 
 @app.post('/webhooks/rasa')
-async def receive_message(request: Request):
+async def handle_message(request: Request):
     message = await request.json()
     result = {
         "sender_id": message.get("receive_id"),
         "receive_id": message.get("sender_id"),
-        "message": "",
+        "text": "",
         "channel": message.get("channel"),
         "type_chat": message.get("type_chat"),
     }
     if message.get("receive_id") in agent_list:
-        response = await agent_list.get(message.get("receive_id")).handle_text(text_message=message.get("message"), sender_id=message.get("sender_id"))
+        response = await agent_list.get(message.get("receive_id")).handle_text(text_message=message.get("text"), sender_id=message.get("sender_id"))
         print("--------------------------------")
         print("response:", response)
         print("--------------------------------")           
         if response:
             if len(response) == 0:
-                result["message"] = "Sorry, I don't understand"
-            result["message"] = response[0]["text"]
+                result["text"] = "Sorry, I don't understand"
+            result["text"] = response[0]["text"]
         else:
             fallback_response = await agent_list.get(message.get("receive_id")).handle_text(DEFAULT_NLU_FALLBACK_INTENT_NAME, sender_id=message.get("sender_id"))
             print("fallback_response: ", fallback_response)
             if len(fallback_response) == 0:
-                result["message"] = "Sorry, I don't understand"
-            result["message"] = fallback_response[0]["text"]
+                result["text"] = "Sorry, I don't understand"
+            result["text"] = fallback_response[0]["text"]
     else:
-        result["message"] = f"""Model {message.get('receive_id')} not exist"""
+        result["text"] = f"""Model {message.get('receive_id')} not exist"""
     return result
 
 create_file_custom_action()
 print(utter_action_list)
+
 load_all_model()
 print(agent_list)
