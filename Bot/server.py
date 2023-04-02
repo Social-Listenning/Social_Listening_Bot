@@ -163,6 +163,8 @@ from rasa_sdk.executor import CollectingDispatcher
         buffer.write(text_import_library)  
 
     uploads_path = "./uploads"
+    if not os.path.exists(uploads_path):
+        os.makedirs(uploads_path)
     folders_path = [f.path for f in os.scandir(uploads_path) if f.is_dir()]
     for folder_path in folders_path:
         file_domain_location = os.path.join(folder_path, "domain.yml")
