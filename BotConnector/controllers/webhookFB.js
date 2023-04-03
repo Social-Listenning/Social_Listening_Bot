@@ -12,7 +12,7 @@ module.exports = {
             // Check the mode and token sent is correct
             if (mode === 'subscribe' && token === VERIFY_TOKEN) {
                 // Respond with the challenge token from the request
-                console.log('WEBHOOK_VERIFIED');
+                console.log('Subscribe webhook successfully');
                 return res.status(200).send(challenge);
             } else {
                 // Respond with '403 Forbidden' if verify tokens do not match
@@ -24,24 +24,20 @@ module.exports = {
     sendToBot: async (req, res) => {
         try {
             let body = req.body;
-            console.log(body.entry[0].messaging);
+            console.log(body);
             if (body.object === 'page') {
                 // Iterate over each entry - there may be multiple if batched
-                body.entry.forEach(async function (entry) {
+                body.entry.forEach(async (entry) => {
                     // Gets the body of the webhook event
-                    let value =
+                    const value =
                         (entry.changes && entry.changes[0].value) ||
                         (entry.messaging && entry.messaging[0]);
-
+                    console.log('value', value);
                     if (value && value.comment_id && value.message) {
                         // messageFBService.replyCmt(value.comment_id, value.message);
-                        await botRasaService.sendCommentToBot(value.comment_id, value.message);
-                    } else if (value && value.sender.id && value.recipient.id && value.message) {
-                        await botRasaService.sendMessageToBot(
-                            value.sender.id,
-                            value.recipient.id,
-                            value.message.text
-                        );
+                        // await botRasaService.sendCommentToBot(value.comment_id, value.message);
+                    } else if (value && value.sender && value.recipient && value.message) {
+                        await botRasaService.sendMessageToBot(value);
                     } else {
                         return res.sendStatus(404);
                     }
