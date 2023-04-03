@@ -1,5 +1,5 @@
 from typing import Optional, List
-from fastapi import Form, FastAPI, File, UploadFile, HTTPException, Request
+from fastapi import Form, FastAPI, File, UploadFile, HTTPException, Request, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from rasa.model_training import train
 from rasa.core.agent import Agent
@@ -7,6 +7,7 @@ from rasa.utils.endpoints import EndpointConfig
 from rasa.shared.constants import DEFAULT_NLU_FALLBACK_INTENT_NAME
 from rasa.core.http_interpreter import RasaNLUHttpInterpreter
 
+import httpx
 import yaml
 import shutil
 import os
@@ -126,9 +127,6 @@ async def create_file_train(pathFile: str):
         with open(pathFile, 'w') as file:
             yaml.dump(data_file, file)
 
-def train_model(model_name, domain, config, training_files, model_path):
-    return train(domain=domain, config=config, training_files=training_files, output=model_path, fixed_model_name=model_name)
-
 async def create_file_custom_action():
     text_import_library = f"""
 from typing import Any, Text, Dict, List
@@ -177,8 +175,10 @@ def load_all_model():
             model_id = os.path.splitext(os.path.splitext(os.path.basename(filename))[0])[0]
             agent_list[model_id] = Agent.load(model_path, action_endpoint=action_endpoint)
 
-@app.post('/train')
-async def training_model(bot_id: str = Form(), files: List[Optional[UploadFile]] = File(...)):
+def train_model(model_name, domain, config, training_files, model_path):
+    return train(domain=domain, config=config, training_files=training_files, output=model_path, fixed_model_name=model_name)
+
+async def handle_train_model(bot_id: str, service_url: str, files: List[Optional[UploadFile]]):
     with concurrent.futures.ThreadPoolExecutor() as executor:
         folder_location = os.path.join("uploads", bot_id)
         if not os.path.exists(folder_location):
@@ -202,37 +202,62 @@ async def training_model(bot_id: str = Form(), files: List[Optional[UploadFile]]
         result = await asyncio.wrap_future(future)
         model_path = os.path.join("models", bot_id + ".tar.gz")
         agent_list[bot_id] = Agent.load(model_path, action_endpoint=action_endpoint)
+        async with httpx.AsyncClient() as client:
+            print(service_url)
+            if service_url.endswith("/"):
+                url = service_url + "rasa/training-result"
+            else:
+                url = service_url + "/rasa/training-result"
+            response = await client.post(url=url, json=result)
+            print(response.status_code)
         return result
-        return "Successful training"
 
-@app.post('/webhooks/rasa')
-async def handle_message(request: Request):
-    message = await request.json()
+async def handle_message(message: any):
     result = {
-        "sender_id": message.get("receive_id"),
-        "receive_id": message.get("sender_id"),
+        "sender_id": message.get("recipient_id"),
+        "recipient_id": message.get("sender_id"),
         "text": "",
         "channel": message.get("channel"),
-        "type_chat": message.get("type_chat"),
+        "type_message": message.get("type_message"),
     }
-    if message.get("receive_id") in agent_list:
-        response = await agent_list.get(message.get("receive_id")).handle_text(text_message=message.get("text"), sender_id=message.get("sender_id"))
+    if message.get("recipient_id") in agent_list:
+        response = await agent_list.get(message.get("recipient_id")).handle_text(text_message=message.get("text"), sender_id=message.get("sender_id"))
         print("--------------------------------")
         print("response:", response)
         print("--------------------------------")           
         if response:
             if len(response) == 0:
                 result["text"] = "Sorry, I don't understand"
-            result["text"] = response[0]["text"]
+            else: result["text"] = response[0]["text"]
         else:
-            fallback_response = await agent_list.get(message.get("receive_id")).handle_text(DEFAULT_NLU_FALLBACK_INTENT_NAME, sender_id=message.get("sender_id"))
+            fallback_response = await agent_list.get(message.get("recipient_id")).handle_text(DEFAULT_NLU_FALLBACK_INTENT_NAME, sender_id=message.get("sender_id"))
             print("fallback_response: ", fallback_response)
             if len(fallback_response) == 0:
                 result["text"] = "Sorry, I don't understand"
-            result["text"] = fallback_response[0]["text"]
+            else: result["text"] = fallback_response[0]["text"]
     else:
-        result["text"] = f"""Model {message.get('receive_id')} not exist"""
+        result["text"] = f"""Model {message.get('recipient_id')} not exist"""
+
+    async with httpx.AsyncClient() as client:
+        print(message.get("service_url"))
+        if message.get("service_url").endswith("/"):
+            url = message.get("service_url") + "rasa/conversations/activities"
+        else:
+            url = message.get("service_url") + "/rasa/conversations/activities"
+        response = await client.post(url=url, json=result)
+        print(response.status_code)
     return result
+
+@app.post('/train')
+async def handling_model(background_tasks: BackgroundTasks, bot_id: str = Form(), service_url: str = Form(), files: List[Optional[UploadFile]] = File(...)):
+    background_tasks.add_task(handle_train_model, bot_id, service_url, files)
+    return {"message": "Send webhook successfully"}
+
+@app.post('/webhook/rasa')
+async def handling_message(background_tasks: BackgroundTasks, request: Request):
+    message = await request.json()
+    background_tasks.add_task(handle_message, message)
+    return {"message": "Send webhook successfully"}
 
 create_file_custom_action()
 print(utter_action_list)
