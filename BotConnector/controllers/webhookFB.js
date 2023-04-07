@@ -34,8 +34,7 @@ module.exports = {
                         (entry.messaging && entry.messaging[0]);
                     console.log('value', value);
                     if (value && value.comment_id && value.message) {
-                        // messageFBService.replyCmt(value.comment_id, value.message);
-                        // await botRasaService.sendCommentToBot(value.comment_id, value.message);
+                        await botRasaService.sendCommentToBot(value);
                     } else if (value && value.sender && value.recipient && value.message) {
                         await botRasaService.sendMessageToBot(value);
                     } else {
@@ -44,10 +43,24 @@ module.exports = {
                 });
                 // Return a '200 OK' response to all events
                 return res.status(200).send('EVENT_RECEIVED');
-            }
-            if (body.object === 'instagram') {
+            } else if (body.object === 'instagram') {
                 console.log(body.entry[0].changes);
                 return res.sendStatus(404);
+            } else if (body.object === 'whatsapp_business_account') {
+                body.entry.forEach(async (entry) => {
+                    if (entry && entry.changes && entry.changes.length > 0) {
+                        const value = entry.changes[0].value;
+                        console.log('value', value);
+                        if (
+                            entry.changes[0].field === 'messages' &&
+                            value.messages &&
+                            value.messages.length
+                        ) {
+                            await botRasaService.sendMessageWhapsAppToBot(value);
+                        }
+                    }
+                });
+                return res.sendStatus(200);
             } else {
                 // Return a '404 Not Found' if event is not from a page subscription
                 return res.sendStatus(404);

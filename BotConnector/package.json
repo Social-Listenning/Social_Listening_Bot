@@ -10,16 +10,13 @@
     "author": "",
     "license": "ISC",
     "dependencies": {
-        "@ringcentral/sdk": "^4.7.3",
         "axios": "^0.27.2",
         "body-parser": "^1.20.0",
         "dotenv": "^16.0.2",
         "express": "^4.18.1",
         "express-query-parser": "^1.3.3",
         "http": "^0.0.1-security",
-        "oauth2-server": "^3.1.1",
-        "request": "^2.88.2",
-        "ringcentral": "^3.3.0"
+        "request": "^2.88.2"
     },
     "devDependencies": {
         "nodemon": "^2.0.19"

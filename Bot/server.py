@@ -218,7 +218,8 @@ async def handle_message(message: any):
         "recipient_id": message.get("sender_id"),
         "text": "",
         "channel": message.get("channel"),
-        "type_message": message.get("type_message"),
+        "type_message": message.get("type_message"), 
+        "metadata": message.get("metadata")
     }
     if message.get("recipient_id") in agent_list:
         response = await agent_list.get(message.get("recipient_id")).handle_text(text_message=message.get("text"), sender_id=message.get("sender_id"))
