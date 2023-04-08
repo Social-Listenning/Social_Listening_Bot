@@ -6,7 +6,10 @@ from rasa.core.agent import Agent
 from rasa.utils.endpoints import EndpointConfig
 from rasa.shared.constants import DEFAULT_NLU_FALLBACK_INTENT_NAME
 from rasa.core.http_interpreter import RasaNLUHttpInterpreter
+from textblob import TextBlob
+from spacytextblob.spacytextblob import SpacyTextBlob
 
+import spacy
 import httpx
 import yaml
 import shutil
@@ -30,6 +33,7 @@ from typing import Any, Text, Dict, List
 from rasa_sdk import Action, Tracker
 from rasa_sdk.events import SlotSet
 from rasa_sdk.executor import CollectingDispatcher
+from textblob import TextBlob
 """
 
 action_endpoint = EndpointConfig(url="http://localhost:5055/webhook")
@@ -51,7 +55,22 @@ class FileTrain:
         self.domain = domain
         self.config = config
         self.training_files = training_files
-    
+      
+def create_sentiment_action(): 
+    return f"""
+class ActionSentiment(Action):
+    def name(self) -> Text:
+        return "action_sentiment"
+    def run(self, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]) -> List[Dict[Text, Any]]:
+        message = tracker.latest_message.get("text")
+        print("------------------- Message ----------------------")   
+        print("message", message)    
+        blob = TextBlob(message)
+        sentiment = blob.sentiment.polarity
+        print("blob.sentiment.polarity: ", sentiment)
+        return [SlotSet("textblob_sentiment", {{"polarity": blob.sentiment.polarity, "subjectivity": blob.sentiment.subjectivity, "sentiment": sentiment}})]
+"""
+      
 def create_sample_action(class_name, action_name, utter_key): 
     return f"""
 class {class_name}(Action):
@@ -59,7 +78,9 @@ class {class_name}(Action):
         return "{action_name}"
     def run(self, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]) -> List[Dict[Text, Any]]:
         entities = tracker.latest_message['entities']
-        print(entities)        
+        print("entities: ", entities)        
+        sentiment = tracker.get_slot("textblob_sentiment")
+        print("sentiment: ", sentiment)        
         
         confidence_of_entities = {{}}        
         for entity in entities:
@@ -96,6 +117,10 @@ async def create_file_train(pathFile: str):
                 data_file = yaml.safe_load(file)
                 if data_file is not None:
                     with open(file_actions_location, 'a') as buffer:
+                        data_file["actions"].append("action_sentiment")
+                        if "action_sentiment" not in utter_action_list:
+                            utter_action_list.append("action_sentiment")
+                            buffer.write(create_sentiment_action())
                         for key in data_file["responses"].keys():
                             key_name = key.replace('_', ' ').title().replace(' ', '')
                             class_name = "Action" + key_name
@@ -106,34 +131,40 @@ async def create_file_train(pathFile: str):
                                 buffer.write(create_sample_action(class_name, action_name, key))
 
             if file.name.endswith("stories.yml") or file.name.endswith("stories.yaml"):
+                steps = []
                 data_file = yaml.safe_load(file)
                 if data_file is not None:
                     for story in data_file['stories']:
+                        steps = []
                         for step in story['steps']:
                             for key, value in step.items():
                                 if (key == 'action' and "utter_" in value[0:6]):
+                                    steps.append({"action": "action_sentiment"})
                                     step[key] = 'action_' + value
+                                steps.append(step)
+                            story['steps'] = steps
+                            
 
             if file.name.endswith('rules.yml') or file.name.endswith("rules.yaml"):
-                print(file.name)
                 data_file = yaml.safe_load(file)
                 if data_file is not None:
                     for rule in data_file['rules']:
+                        steps = []
                         for step in rule['steps']:
                             for key, value in step.items():
                                 if (key == 'action' and "utter_" in value[0:6]):
-                                    step[key] = 'action_' + value 
+                                    steps.append({"action": "action_sentiment"})
+                                    step[key] = 'action_' + value
+                                steps.append(step)
+                            rule['steps'] = steps
+    # data_file["slots"] = {}
+    # data_file["slots"]["textblob_sentiment"] = {}
+    data_file["slots"]["textblob_sentiment"]["type"] = "text"
     if data_file is not None: 
         with open(pathFile, 'w') as file:
             yaml.dump(data_file, file)
 
-async def create_file_custom_action():
-    text_import_library = f"""
-from typing import Any, Text, Dict, List
-from rasa_sdk import Action, Tracker
-from rasa_sdk.events import SlotSet
-from rasa_sdk.executor import CollectingDispatcher
-"""
+def create_file_custom_action():
     folder_actions_location = os.path.join("actions")
     if not os.path.exists(folder_actions_location):
         os.makedirs(folder_actions_location)
@@ -153,6 +184,10 @@ from rasa_sdk.executor import CollectingDispatcher
                 if data_file is not None:
                     with open(file_actions_location, 'a') as buffer: 
                         if "responses" in data_file:
+                            data_file["actions"].append("action_sentiment")
+                            if "action_sentiment" not in utter_action_list:
+                                utter_action_list.append("action_sentiment")
+                                buffer.write(create_sentiment_action())
                             for key in data_file.get("responses").keys():
                                 key_name = key.replace('_', ' ').title().replace(' ', '')
                                 class_name = "Action" + key_name
@@ -160,7 +195,7 @@ from rasa_sdk.executor import CollectingDispatcher
                                 data_file["actions"].append(action_name)
                                 if action_name not in utter_action_list:
                                     utter_action_list.append(action_name)
-                                    buffer.write(create_sample_action(class_name, action_name, key))
+                                    buffer.write(create_sample_action(class_name, action_name, key))        
 
 def load_all_model():
     # Define the path to the models directory
@@ -261,7 +296,31 @@ async def handling_message(background_tasks: BackgroundTasks, request: Request):
     return {"message": "Send webhook successfully"}
 
 create_file_custom_action()
-print(utter_action_list)
-
+print("utter_action_list", utter_action_list)
 load_all_model()
 print(agent_list)
+
+nlp = spacy.load("en_core_web_trf")
+
+@spacy.Language.component("sentiment_analysis")
+def analyze_sentiment(doc):
+    sentiments = []
+    for sentence in doc.sents:
+        blob = TextBlob(sentence.text)
+        print(blob.sentiment)
+        print(blob.sentiment_assessments)
+        sentiments.append(blob.sentiment.polarity)
+    doc.sentiment = sum(sentiments) / len(sentiments)
+    return doc
+
+nlp.add_pipe("sentiment_analysis", name="sentiment_analysis", last=True)
+nlp.add_pipe("spacytextblob")
+
+@app.post('/sentiment')
+async def handling_sentiment(request: Request):
+    message = await request.json()
+    doc = nlp(message.get('text'))
+    print(doc.sentiment)
+    print(doc._.blob.polarity)
+    print(doc._.blob.subjectivity)
+    return doc.sentiment
