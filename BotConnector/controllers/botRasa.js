@@ -1,4 +1,4 @@
-const { messageFBService } = require('../services/index');
+const { botRasaService } = require('../services/index');
 
 module.exports = {
     // Sends response messages via the Send API
@@ -7,7 +7,7 @@ module.exports = {
         // Construct the message body
         // Send the HTTP request to the Messenger Platform
         if (req.body.text) {
-            await messageFBService.replyMessage(req.body);
+            await botRasaService.replyMessage(req.body);
             return res.end();
         } else {
             return res.sendStatus(403);

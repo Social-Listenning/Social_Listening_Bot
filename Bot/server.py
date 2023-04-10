@@ -306,7 +306,7 @@ async def handle_message(message: any):
         "networkId": message.get("recipient_id"),
         "message": result["text"],
         "sender": message.get("recipient_id"),
-        "createdAt": datetime.utcnow().isoformat(),
+        "createdAt": datetime.now().isoformat(),
         "type": "Bot",
         "parent": {
             "postId": message.get("metadata").get("post_id"),

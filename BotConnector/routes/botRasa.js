@@ -1,11 +1,11 @@
 require('dotenv').config();
 const express = require('express');
-const { messageFBController } = require('../controllers/index');
+const { botRasaController } = require('../controllers/index');
 
 const botRasaRouter = express.Router();
 
-botRasaRouter.post('/bot', messageFBController.callSendMsg);
-botRasaRouter.post('/conversations/activities', messageFBController.callSendMsg);
-botRasaRouter.post('/training-result', messageFBController.trainingResult);
+botRasaRouter.post('/bot', botRasaController.callSendMsg);
+botRasaRouter.post('/conversations/activities', botRasaController.callSendMsg);
+botRasaRouter.post('/training-result', botRasaController.trainingResult);
 
 module.exports = botRasaRouter;

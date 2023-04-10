@@ -1,7 +1,7 @@
-const messageFBController = require('./messageFB');
-const webhookFBController = require('./webhookFB');
+const botRasaController = require('./botRasa');
+const webhookController = require('./webhook');
 
 module.exports = {
-    messageFBController,
-    webhookFBController,
+    botRasaController,
+    webhookController,
 };

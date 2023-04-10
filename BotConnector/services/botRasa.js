@@ -1,95 +1,79 @@
 const axios = require('axios');
-const moment = require('moment');
-const { checkPageWorking } = require('../utils');
+require('dotenv').config();
 
-const { BOT_RASA_URL, PAGE_ACCESS_TOKEN } = process.env;
+const { PAGE_ACCESS_TOKEN, TELEGRAM_TOKEN } = process.env;
 
 module.exports = {
-    sendCommentToBot: async (value) => {
+    replyMessage: async (message) => {
         try {
-            const { from, post, post_id, comment_id, parent_id, message, created_time } = value;
-            const botId = post_id.split('_')[0];
-            if (await checkPageWorking(botId)) {
-                if (from.id !== botId) {
-                    const resultInformationPost = await axios.get(
-                        `${process.env.GRAPH_FACEBOOK_API}/v14.0/${post_id}?fields=message,created_time&access_token=${PAGE_ACCESS_TOKEN}`
-                    );
+            let result;
+            if (message && message.channel && message.type_message) {
+                if (message.channel.toLowerCase() === 'facebook') {
+                    if (message.type_message.toLowerCase() === 'message') {
+                        const requestBody = {
+                            recipient: {
+                                id: message.recipient_id,
+                            },
+                            message: { text: message.text },
+                        };
+                        result = await axios.post(
+                            `${process.env.GRAPH_FACEBOOK_API}/v14.0/me/messages?access_token=${PAGE_ACCESS_TOKEN}`,
+                            requestBody
+                        );
+                    }
+                    if (message.type_message.toLowerCase() === 'comment' && message.metadata) {
+                        const requestBody = {
+                            message: message.text,
+                        };
+                        result = await axios.post(
+                            `${process.env.GRAPH_FACEBOOK_API}/v14.0/${message.metadata.comment_id}/comments?access_token=${PAGE_ACCESS_TOKEN}`,
+                            requestBody
+                        );
+                    }
+                }
+                if (message.channel.toLowerCase() === 'whatsapp') {
+                    console.log(message);
+                    if (message.type_message && message.type_message.toLowerCase() === 'message') {
+                        const requestBody = {
+                            to: message.recipient_id,
+                            text: { body: message.text },
+                            messaging_product: 'whatsapp',
+                            type: 'text',
+                        };
 
-                    const requestBody = {
-                        text: message,
-                        sender_id: from && from.id,
-                        recipient_id: botId,
-                        channel: 'facebook',
-                        type_message: 'comment',
-                        service_url: 'http://localhost:8080',
-                        metadata: {
-                            post_id: post_id,
-                            post_message: resultInformationPost.data.message,
-                            post_created_time: resultInformationPost.data.created_time,
-                            comment_id: comment_id,
-                            parent_id: parent_id,
-                            permalink_url: post.permalink_url,
-                            comment_created_time: moment.unix(created_time).toISOString(),
-                        },
-                    };
-                    console.log('Message: ', requestBody);
+                        result = await axios.post(
+                            `${process.env.GRAPH_FACEBOOK_API}/v16.0/${message.sender_id}/messages`,
+                            requestBody,
+                            {
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    Authorization: `Bearer ${PAGE_ACCESS_TOKEN}`,
+                                },
+                            }
+                        );
+                    }
+                }
+                if (message.channel.toLowerCase() === 'telegram') {
+                    console.log(message);
 
-                    const result = await axios.post(`${BOT_RASA_URL}/webhook/rasa`, requestBody);
-                    return result.data;
+                    if (message.type_message && message.type_message.toLowerCase() === 'message') {
+                        const requestBody = {
+                            chat_id: message.from,
+                            text: 'Hello, World!',
+                        };
+                        result = await axios.post(
+                            `https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`,
+                            requestBody
+                        );
+                    }
                 }
             }
-            return;
+            console.log(PAGE_ACCESS_TOKEN);
+            console.log('Comment id successfully:', result.data);
+            return result;
         } catch (error) {
             console.log(error.message);
-            return error.message;
-        }
-    },
-    sendMessageToBot: async (value) => {
-        try {
-            const { sender, recipient, message } = value;
-            if (await checkPageWorking(recipient.id)) {
-                const requestBody = {
-                    text: message && message.text,
-                    sender_id: sender && sender.id,
-                    recipient_id: recipient && recipient.id,
-                    channel: 'facebook',
-                    type_message: 'messenger',
-                    service_url: 'http://localhost:8080',
-                };
-                console.log('Message: ', requestBody);
-                const result = await axios.post(`${BOT_RASA_URL}/webhook/rasa`, requestBody);
-                console.log(result.data);
-                return result.data;
-            }
-            return;
-        } catch (error) {
-            console.log(error.message);
-            return error.message;
-        }
-    },
-    sendMessageWhapsAppToBot: async (value) => {
-        try {
-            const { messaging_product, metadata, messages } = value;
-            if (await checkPageWorking(metadata.phone_number_id)) {
-                if (messages && messages.length) {
-                    const requestBody = {
-                        text: messages[0].text && messages[0].text.body,
-                        sender_id: messages[0].from,
-                        // recipient_id: metadata && metadata.display_phone_number,
-                        recipient_id: metadata && metadata.phone_number_id,
-                        channel: messaging_product || 'whatsapp',
-                        type_message: 'messenger',
-                        service_url: 'http://localhost:8080',
-                    };
-                    console.log('Message: ', requestBody);
-                    const result = await axios.post(`${BOT_RASA_URL}/webhook/rasa`, requestBody);
-                    console.log(result.data);
-                    return result.data;
-                }
-            }
-            return;
-        } catch (error) {
-            console.log(error.message);
+            console.log(error);
             return error.message;
         }
     },

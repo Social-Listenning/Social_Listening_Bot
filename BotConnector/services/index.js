@@ -1,7 +1,7 @@
-const messageFBService = require('./messageFB');
 const botRasaService = require('./botRasa');
+const webhookService = require('./webhook');
 
 module.exports = {
-    messageFBService,
     botRasaService,
+    webhookService,
 };

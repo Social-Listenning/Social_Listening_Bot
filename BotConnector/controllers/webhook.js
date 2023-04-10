@@ -1,4 +1,4 @@
-const { botRasaService } = require('../services/index');
+const { webhookService } = require('../services/index');
 const { VERIFY_TOKEN } = process.env;
 
 module.exports = {
@@ -21,9 +21,10 @@ module.exports = {
         }
     },
 
-    sendToBot: async (req, res) => {
+    facebookSendToBot: async (req, res) => {
         try {
             let body = req.body;
+            console.log(body);
             if (body.object === 'page') {
                 // Iterate over each entry - there may be multiple if batched
                 body.entry.forEach(async (entry) => {
@@ -31,11 +32,11 @@ module.exports = {
                     const value =
                         (entry.changes && entry.changes[0].value) ||
                         (entry.messaging && entry.messaging[0]);
-                    // console.log('Value: ', value);
+                    console.log('Value: ', value);
                     if (value && value.comment_id && value.message) {
-                        await botRasaService.sendCommentToBot(value);
+                        await webhookService.fbCommentSendToBot(value);
                     } else if (value && value.sender && value.recipient && value.message) {
-                        await botRasaService.sendMessageToBot(value);
+                        await webhookService.messengerSendToBot(value);
                     } else {
                         return res.sendStatus(404);
                     }
@@ -55,7 +56,7 @@ module.exports = {
                             value.messages &&
                             value.messages.length
                         ) {
-                            await botRasaService.sendMessageWhapsAppToBot(value);
+                            await webhookService.whapsAppSendToBot(value);
                         }
                     }
                 });
@@ -63,6 +64,21 @@ module.exports = {
             } else {
                 // Return a '404 Not Found' if event is not from a page subscription
                 return res.sendStatus(404);
+            }
+        } catch (error) {
+            return res.status(500).send(error.message);
+        }
+    },
+
+    telegramSendToBot: async (req, res) => {
+        try {
+            let body = req.body;
+            console.log(body);
+            if (body && body.message) {
+                await webhookService.telegramSendToBot(body.message);
+                return res.sendStatus(200);
+            } else {
+                return res.sendStatus(400);
             }
         } catch (error) {
             return res.status(500).send(error.message);
