@@ -133,6 +133,11 @@ actions:
     # - action_utter_goodbye
     - action_hello_world
 
+# actions_mapping:
+#     introduce_name:
+#         - action_sentiment
+#         - action_utter_introduce_name
+
 session_config:
     session_expiration_time: 60
     carry_over_slots_to_new_session: true
