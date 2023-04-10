@@ -58,10 +58,9 @@ module.exports = {
                 }
             }
             console.log(PAGE_ACCESS_TOKEN);
-            console.log(result);
+            console.log('Comment id successfully:', result.data);
             return result;
         } catch (error) {
-            console.log(error);
             console.log(error.message);
             console.log(error);
             return error.message;

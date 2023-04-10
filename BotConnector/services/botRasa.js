@@ -2,18 +2,17 @@ const axios = require('axios');
 const moment = require('moment');
 const { checkPageWorking } = require('../utils');
 
-const { BOT_RASA_URL } = process.env;
+const { BOT_RASA_URL, PAGE_ACCESS_TOKEN } = process.env;
 
 module.exports = {
     sendCommentToBot: async (value) => {
         try {
             const { from, post, post_id, comment_id, parent_id, message, created_time } = value;
             const botId = post_id.split('_')[0];
-            console.log(moment.unix(created_time));
             if (await checkPageWorking(botId)) {
                 if (from.id !== botId) {
                     const resultInformationPost = await axios.get(
-                        `${post_id}?fields=message,created_time`
+                        `${process.env.GRAPH_FACEBOOK_API}/v14.0/${post_id}?fields=message,created_time&access_token=${PAGE_ACCESS_TOKEN}`
                     );
 
                     const requestBody = {
@@ -36,7 +35,6 @@ module.exports = {
                     console.log('Message: ', requestBody);
 
                     const result = await axios.post(`${BOT_RASA_URL}/webhook/rasa`, requestBody);
-                    console.log(result.data);
                     return result.data;
                 }
             }

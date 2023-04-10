@@ -24,7 +24,6 @@ module.exports = {
     sendToBot: async (req, res) => {
         try {
             let body = req.body;
-            console.log(body);
             if (body.object === 'page') {
                 // Iterate over each entry - there may be multiple if batched
                 body.entry.forEach(async (entry) => {
@@ -32,7 +31,7 @@ module.exports = {
                     const value =
                         (entry.changes && entry.changes[0].value) ||
                         (entry.messaging && entry.messaging[0]);
-                    console.log('value', value);
+                    // console.log('Value: ', value);
                     if (value && value.comment_id && value.message) {
                         await botRasaService.sendCommentToBot(value);
                     } else if (value && value.sender && value.recipient && value.message) {

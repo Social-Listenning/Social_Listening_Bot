@@ -8,6 +8,7 @@ from rasa.shared.constants import DEFAULT_NLU_FALLBACK_INTENT_NAME
 from rasa.core.http_interpreter import RasaNLUHttpInterpreter
 from textblob import TextBlob
 from spacytextblob.spacytextblob import SpacyTextBlob
+from dotenv import load_dotenv
 
 import spacy
 import httpx
@@ -18,6 +19,7 @@ import concurrent.futures
 import asyncio
 import glob
 
+load_dotenv()
 app = FastAPI()
 origins = ["*"]
 app.add_middleware(
@@ -36,7 +38,7 @@ from rasa_sdk.executor import CollectingDispatcher
 from textblob import TextBlob
 """
 
-social_page_url="http://localhost:5000/"
+social_page_url="http://localhost:3000/"
 action_endpoint = EndpointConfig(url="http://localhost:5055/webhook")
 http_interpreter = RasaNLUHttpInterpreter(EndpointConfig(
     url="http://localhost:5005/",
@@ -239,11 +241,11 @@ async def handle_message(message: any):
         "metadata": message.get("metadata")
     }
     
-    blob = TextBlob(message)
+    blob = TextBlob(message.get("text"))
     sentiment = blob.sentiment.polarity
     print("sentiment: ", sentiment)  
 
-    result = {
+    result_sentiment = {
         "networkId": message.get("recipient_id"),
         "message": message.get("text"),
         "sender": message.get("sender_id"),
@@ -258,17 +260,19 @@ async def handle_message(message: any):
         "sentiment": sentiment,
         "postId": message.get("metadata").get("post_id"),
         "commentId": message.get("metadata").get("comment_id"),
-        "parentId": message.get("metadata").get("parrent_id")
+        "parentId": message.get("metadata").get("parent_id")
     }
 
     async with httpx.AsyncClient() as client:
         headers = {'Authorization': '5p3cti4L-t0k3n'}
+        print("Headers", headers) 
+        print("Body", result_sentiment) 
         if social_page_url.endswith("/"):
             url = social_page_url + "social-message/save"
         else:
             url = social_page_url + "/social-message/save"
-        response = await client.post(url=url, headers=headers, json=result)
-        print(response.status_code) 
+        response_save_sentiment = await client.post(url=url, headers=headers, json=result_sentiment)
+        print("Response save sentiment", response_save_sentiment)
 
     if message.get("recipient_id") in agent_list:
         response = await agent_list.get(message.get("recipient_id")).handle_text(text_message=message.get("text"), sender_id=message.get("sender_id"))
