@@ -29,7 +29,7 @@ module.exports = {
                             comment_id: comment_id,
                             parent_id: parent_id,
                             permalink_url: post.permalink_url,
-                            comment_created_time: moment.unix(created_time).format('MM/DD/YYYY'),
+                            comment_created_time: moment.unix(created_time).toISOString(),
                         },
                     };
                     console.log('Message: ', requestBody);

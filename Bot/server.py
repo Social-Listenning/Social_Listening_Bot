@@ -9,6 +9,7 @@ from rasa.core.http_interpreter import RasaNLUHttpInterpreter
 from textblob import TextBlob
 from spacytextblob.spacytextblob import SpacyTextBlob
 from dotenv import load_dotenv
+from datetime import datetime
 
 import spacy
 import httpx
@@ -38,6 +39,9 @@ from rasa_sdk.executor import CollectingDispatcher
 from textblob import TextBlob
 """
 
+
+# SOCIAL_PAGE_URL=os.getenv('SOCIAL_PAGE_URL')
+# RASA_ACTION_URL=os.getenv('RASA_ACTION_URL')
 social_page_url="http://localhost:3000/"
 action_endpoint = EndpointConfig(url="http://localhost:5055/webhook")
 http_interpreter = RasaNLUHttpInterpreter(EndpointConfig(
@@ -266,8 +270,8 @@ async def handle_message(message: any):
 
     async with httpx.AsyncClient() as client:
         headers = {'Authorization': '5p3cti4L-t0k3n'}
-        print("Headers", headers) 
-        print("Body", result_sentiment) 
+        # print("Headers", headers) 
+        # print("Body", result_sentiment) 
         if social_page_url.endswith("/"):
             url = social_page_url + "social-message/save"
         else:
@@ -302,7 +306,7 @@ async def handle_message(message: any):
         "networkId": message.get("recipient_id"),
         "message": result["text"],
         "sender": message.get("recipient_id"),
-        "createdAt": message.get("metadata").get("comment_created_time"),
+        "createdAt": datetime.utcnow().isoformat(),
         "type": "Bot",
         "parent": {
             "postId": message.get("metadata").get("post_id"),
@@ -360,8 +364,8 @@ def analyze_sentiment(doc):
     sentiments = []
     for sentence in doc.sents:
         blob = TextBlob(sentence.text)
-        print(blob.sentiment)
-        print(blob.sentiment_assessments)
+        # print(blob.sentiment)
+        # print(blob.sentiment_assessments)
         sentiments.append(blob.sentiment.polarity)
     doc.sentiment = sum(sentiments) / len(sentiments)
     return doc
