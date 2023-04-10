@@ -56,20 +56,18 @@ class FileTrain:
         self.config = config
         self.training_files = training_files
       
-def create_sentiment_action(): 
-    return f"""
-class ActionSentiment(Action):
-    def name(self) -> Text:
-        return "action_sentiment"
-    def run(self, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]) -> List[Dict[Text, Any]]:
-        message = tracker.latest_message.get("text")
-        print("------------------- Message ----------------------")   
-        print("message", message)    
-        blob = TextBlob(message)
-        sentiment = blob.sentiment.polarity
-        print("blob.sentiment.polarity: ", sentiment)
-        return [SlotSet("textblob_sentiment", {{"polarity": blob.sentiment.polarity, "subjectivity": blob.sentiment.subjectivity, "sentiment": sentiment}})]
-"""
+# def create_sentiment_action(): 
+#     return f"""
+# class ActionSentiment(Action):
+#     def name(self) -> Text:
+#         return "action_sentiment"
+#     def run(self, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]) -> List[Dict[Text, Any]]:
+#         message = tracker.latest_message.get("text")
+#         blob = TextBlob(message)
+#         sentiment = blob.sentiment.polarity
+#         print("blob.sentiment.polarity: ", sentiment)
+#         return [SlotSet("textblob_sentiment", {{"polarity": blob.sentiment.polarity, "subjectivity": blob.sentiment.subjectivity, "sentiment": sentiment}})]
+# """
       
 def create_sample_action(class_name, action_name, utter_key): 
     return f"""
@@ -77,9 +75,13 @@ class {class_name}(Action):
     def name(self) -> Text:
         return "{action_name}"
     def run(self, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]) -> List[Dict[Text, Any]]:
-        entities = tracker.latest_message['entities']
-        print("entities: ", entities)        
-        sentiment = tracker.get_slot("textblob_sentiment")
+        print(-------------------------------- Utter Action --------------------------------)
+        entities = tracker.latest_message.get("entities")
+        print("entities: ", entities)    
+
+        message = tracker.latest_message.get("text")
+        blob = TextBlob(message)
+        sentiment = blob.sentiment.polarity
         print("sentiment: ", sentiment)        
         
         confidence_of_entities = {{}}        
@@ -117,10 +119,6 @@ async def create_file_train(pathFile: str):
                 data_file = yaml.safe_load(file)
                 if data_file is not None:
                     with open(file_actions_location, 'a') as buffer:
-                        data_file["actions"].append("action_sentiment")
-                        if "action_sentiment" not in utter_action_list:
-                            utter_action_list.append("action_sentiment")
-                            buffer.write(create_sentiment_action())
                         for key in data_file["responses"].keys():
                             key_name = key.replace('_', ' ').title().replace(' ', '')
                             class_name = "Action" + key_name
@@ -129,37 +127,29 @@ async def create_file_train(pathFile: str):
                             if action_name not in utter_action_list:
                                 utter_action_list.append(action_name)
                                 buffer.write(create_sample_action(class_name, action_name, key))
+                # data_file["slots"] = {}
+                # data_file["slots"]["textblob_sentiment"] = {}
+                # data_file["slots"]["textblob_sentiment"]["type"] = "any"
+                # data_file["slots"]["textblob_sentiment"]["mappings"] = [{"type": "custom"}]
 
             if file.name.endswith("stories.yml") or file.name.endswith("stories.yaml"):
-                steps = []
                 data_file = yaml.safe_load(file)
                 if data_file is not None:
                     for story in data_file['stories']:
-                        steps = []
                         for step in story['steps']:
                             for key, value in step.items():
                                 if (key == 'action' and "utter_" in value[0:6]):
-                                    steps.append({"action": "action_sentiment"})
                                     step[key] = 'action_' + value
-                                steps.append(step)
-                            story['steps'] = steps
-                            
 
             if file.name.endswith('rules.yml') or file.name.endswith("rules.yaml"):
                 data_file = yaml.safe_load(file)
                 if data_file is not None:
                     for rule in data_file['rules']:
-                        steps = []
                         for step in rule['steps']:
                             for key, value in step.items():
                                 if (key == 'action' and "utter_" in value[0:6]):
-                                    steps.append({"action": "action_sentiment"})
                                     step[key] = 'action_' + value
-                                steps.append(step)
-                            rule['steps'] = steps
-    # data_file["slots"] = {}
-    # data_file["slots"]["textblob_sentiment"] = {}
-    data_file["slots"]["textblob_sentiment"]["type"] = "text"
+
     if data_file is not None: 
         with open(pathFile, 'w') as file:
             yaml.dump(data_file, file)
@@ -184,10 +174,6 @@ def create_file_custom_action():
                 if data_file is not None:
                     with open(file_actions_location, 'a') as buffer: 
                         if "responses" in data_file:
-                            data_file["actions"].append("action_sentiment")
-                            if "action_sentiment" not in utter_action_list:
-                                utter_action_list.append("action_sentiment")
-                                buffer.write(create_sentiment_action())
                             for key in data_file.get("responses").keys():
                                 key_name = key.replace('_', ' ').title().replace(' ', '')
                                 class_name = "Action" + key_name
