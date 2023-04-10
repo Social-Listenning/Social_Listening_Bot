@@ -34,6 +34,10 @@ from rasa_sdk import Action, Tracker
 from rasa_sdk.events import SlotSet
 from rasa_sdk.executor import CollectingDispatcher
 from textblob import TextBlob
+
+import httpx
+
+web_page_url="http://localhost:5000/"
 """
 
 action_endpoint = EndpointConfig(url="http://localhost:5055/webhook")
@@ -75,14 +79,14 @@ class {class_name}(Action):
     def name(self) -> Text:
         return "{action_name}"
     def run(self, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]) -> List[Dict[Text, Any]]:
-        print(-------------------------------- Utter Action --------------------------------)
+        print("-------------------------------- Utter Action --------------------------------")
         entities = tracker.latest_message.get("entities")
         print("entities: ", entities)    
 
         message = tracker.latest_message.get("text")
         blob = TextBlob(message)
         sentiment = blob.sentiment.polarity
-        print("sentiment: ", sentiment)        
+        print("sentiment: ", sentiment)     
         
         confidence_of_entities = {{}}        
         for entity in entities:
