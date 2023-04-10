@@ -25,16 +25,12 @@ module.exports = {
                         metadata: {
                             post_id: post_id,
                             post_message: resultInformationPost.data.message,
-                            post_created_time: moment(resultInformationPost.data.created_time)
-                                .add(7, 'hours')
-                                .toISOString(),
+                            post_created_time: resultInformationPost.data.created_time,
+                            // moment().add(7, 'hours').toISOString(),
                             comment_id: comment_id,
                             parent_id: parent_id,
                             permalink_url: post.permalink_url,
-                            comment_created_time: moment
-                                .unix(created_time)
-                                .add(7, 'hours')
-                                .toISOString(),
+                            comment_created_time: moment.unix(created_time).toISOString(),
                         },
                     };
                     console.log('Message: ', requestBody);
