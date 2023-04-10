@@ -1,4 +1,5 @@
 const axios = require('axios');
+const moment = require('moment');
 const { checkPageWorking } = require('../utils');
 
 const { BOT_RASA_URL } = process.env;
@@ -6,10 +7,13 @@ const { BOT_RASA_URL } = process.env;
 module.exports = {
     sendCommentToBot: async (value) => {
         try {
-            const { from, post_id, comment_id, message } = value;
+            const { from, post, post_id, comment_id, parent_id, message, created_time } = value;
             const botId = post_id.split('_')[0];
+            console.log(moment.unix(created_time));
             if (await checkPageWorking(botId)) {
                 if (from.id !== botId) {
+                    const resultInformationPost = await axios.get(`${post_id}?fields=message`);
+
                     const requestBody = {
                         text: message,
                         sender_id: from && from.id,
@@ -19,10 +23,15 @@ module.exports = {
                         service_url: 'http://localhost:8080',
                         metadata: {
                             post_id: post_id,
+                            post_message: resultInformationPost.data.message,
                             comment_id: comment_id,
+                            parent_id: parent_id,
+                            permalink_url: post.permalink_url,
+                            created_at: moment.unix(created_time).format('MM/DD/YYYY'),
                         },
                     };
                     console.log('Message: ', requestBody);
+
                     const result = await axios.post(`${BOT_RASA_URL}/webhook/rasa`, requestBody);
                     console.log(result.data);
                     return result.data;

@@ -34,12 +34,9 @@ from rasa_sdk import Action, Tracker
 from rasa_sdk.events import SlotSet
 from rasa_sdk.executor import CollectingDispatcher
 from textblob import TextBlob
-
-import httpx
-
-web_page_url="http://localhost:5000/"
 """
 
+social_page_url="http://localhost:5000/"
 action_endpoint = EndpointConfig(url="http://localhost:5055/webhook")
 http_interpreter = RasaNLUHttpInterpreter(EndpointConfig(
     url="http://localhost:5005/",
@@ -83,11 +80,6 @@ class {class_name}(Action):
         entities = tracker.latest_message.get("entities")
         print("entities: ", entities)    
 
-        message = tracker.latest_message.get("text")
-        blob = TextBlob(message)
-        sentiment = blob.sentiment.polarity
-        print("sentiment: ", sentiment)     
-        
         confidence_of_entities = {{}}        
         for entity in entities:
             entity_name = entity.get('entity')  
@@ -246,6 +238,36 @@ async def handle_message(message: any):
         "type_message": message.get("type_message"), 
         "metadata": message.get("metadata")
     }
+    
+    blob = TextBlob(message)
+    sentiment = blob.sentiment.polarity
+    print("sentiment: ", sentiment)  
+
+    result = {
+        "networkId": message.get("recipient_id"),
+        "message": message.get("text"),
+        "sender": message.get("sender_id"),
+        "type": message.get("type_message"),
+        "parent": {
+            "postId": message.get("metadata").get("post_id"),
+            "message": message.get("metadata").get("post_message"),
+            "permalinkUrl": message.get("metadata").get("permalink_url"),
+            "createdAt": message.get("metadata").get("created_at")
+        },
+        "sentiment": sentiment,
+        "postId": message.get("metadata").get("post_id"),
+        "commentId": message.get("metadata").get("comment_id"),
+        "parentId": message.get("metadata").get("parrent_id")
+    }
+
+    async with httpx.AsyncClient() as client:
+        if social_page_url.endswith("/"):
+            url = social_page_url + "social-message/save"
+        else:
+            url = social_page_url + "/social-message/save"
+        response = await client.post(url=url, json=result)
+        print(response.status_code) 
+
     if message.get("recipient_id") in agent_list:
         response = await agent_list.get(message.get("recipient_id")).handle_text(text_message=message.get("text"), sender_id=message.get("sender_id"))
         print("--------------------------------")
