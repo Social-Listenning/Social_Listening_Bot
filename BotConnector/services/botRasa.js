@@ -12,7 +12,9 @@ module.exports = {
             console.log(moment.unix(created_time));
             if (await checkPageWorking(botId)) {
                 if (from.id !== botId) {
-                    const resultInformationPost = await axios.get(`${post_id}?fields=message`);
+                    const resultInformationPost = await axios.get(
+                        `${post_id}?fields=message,created_time`
+                    );
 
                     const requestBody = {
                         text: message,
@@ -24,10 +26,11 @@ module.exports = {
                         metadata: {
                             post_id: post_id,
                             post_message: resultInformationPost.data.message,
+                            post_created_time: resultInformationPost.data.created_time,
                             comment_id: comment_id,
                             parent_id: parent_id,
                             permalink_url: post.permalink_url,
-                            created_at: moment.unix(created_time).format('MM/DD/YYYY'),
+                            comment_created_time: moment.unix(created_time).format('MM/DD/YYYY'),
                         },
                     };
                     console.log('Message: ', requestBody);

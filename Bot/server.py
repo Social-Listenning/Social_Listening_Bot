@@ -247,12 +247,13 @@ async def handle_message(message: any):
         "networkId": message.get("recipient_id"),
         "message": message.get("text"),
         "sender": message.get("sender_id"),
+        "createdAt": message.get("metadata").get("comment_created_time"),
         "type": message.get("type_message"),
         "parent": {
             "postId": message.get("metadata").get("post_id"),
             "message": message.get("metadata").get("post_message"),
             "permalinkUrl": message.get("metadata").get("permalink_url"),
-            "createdAt": message.get("metadata").get("created_at")
+            "createdAt": message.get("metadata").get("post_created_time")
         },
         "sentiment": sentiment,
         "postId": message.get("metadata").get("post_id"),
@@ -261,11 +262,12 @@ async def handle_message(message: any):
     }
 
     async with httpx.AsyncClient() as client:
+        headers = {'Authorization': '5p3cti4L-t0k3n'}
         if social_page_url.endswith("/"):
             url = social_page_url + "social-message/save"
         else:
             url = social_page_url + "/social-message/save"
-        response = await client.post(url=url, json=result)
+        response = await client.post(url=url, headers=headers, json=result)
         print(response.status_code) 
 
     if message.get("recipient_id") in agent_list:
