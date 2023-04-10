@@ -241,9 +241,10 @@ async def handle_message(message: any):
         "metadata": message.get("metadata")
     }
     
-    blob = TextBlob(message.get("text"))
-    sentiment = blob.sentiment.polarity
-    print("sentiment: ", sentiment)  
+    doc = nlp(message.get('text'))
+    # sentiment = doc.sentiment
+    sentiment = doc._.blob.polarity
+    print("Sentiment of user: ", sentiment)  
 
     result_sentiment = {
         "networkId": message.get("recipient_id"),
@@ -276,9 +277,9 @@ async def handle_message(message: any):
 
     if message.get("recipient_id") in agent_list:
         response = await agent_list.get(message.get("recipient_id")).handle_text(text_message=message.get("text"), sender_id=message.get("sender_id"))
-        print("--------------------------------")
-        print("response:", response)
-        print("--------------------------------")           
+        # print("--------------------------------")
+        # print("response:", response)
+        # print("--------------------------------")           
         if response:
             if len(response) == 0:
                 result["text"] = "Sorry, I don't understand"
@@ -292,14 +293,48 @@ async def handle_message(message: any):
     else:
         result["text"] = f"""Model {message.get('recipient_id')} not exist"""
 
+    
+    doc = nlp(result["text"])
+    sentiment = doc._.blob.polarity
+    print("Sentiment of bot: ", sentiment) 
+
+    result_sentiment = {
+        "networkId": message.get("recipient_id"),
+        "message": result["text"],
+        "sender": message.get("recipient_id"),
+        "createdAt": message.get("metadata").get("comment_created_time"),
+        "type": "Bot",
+        "parent": {
+            "postId": message.get("metadata").get("post_id"),
+            "message": message.get("metadata").get("post_message"),
+            "permalinkUrl": message.get("metadata").get("permalink_url"),
+            "createdAt": message.get("metadata").get("post_created_time")
+        },
+        "sentiment": sentiment,
+        "postId": message.get("metadata").get("post_id"),
+        "commentId": message.get("metadata").get("comment_id"),
+        "parentId": message.get("metadata").get("parent_id")
+    }
+
     async with httpx.AsyncClient() as client:
-        print(message.get("service_url"))
+        headers = {'Authorization': '5p3cti4L-t0k3n'}
+        # print("Headers", headers) 
+        # print("Body", result_sentiment) 
+        if social_page_url.endswith("/"):
+            url = social_page_url + "social-message/save"
+        else:
+            url = social_page_url + "/social-message/save"
+        response_save_sentiment = await client.post(url=url, headers=headers, json=result_sentiment)
+        print("Response save sentiment", response_save_sentiment)
+
+    async with httpx.AsyncClient() as client:
+        # print(message.get("service_url"))
         if message.get("service_url").endswith("/"):
             url = message.get("service_url") + "rasa/conversations/activities"
         else:
             url = message.get("service_url") + "/rasa/conversations/activities"
         response = await client.post(url=url, json=result)
-        print(response.status_code)
+        # print(response.status_code)
     return result
 
 @app.post('/train')
