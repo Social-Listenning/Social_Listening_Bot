@@ -201,6 +201,13 @@ def load_all_model():
 def train_model(model_name, domain, config, training_files, model_path):
     return train(domain=domain, config=config, training_files=training_files, output=model_path, fixed_model_name=model_name)
 
+def agent_load_model(bot_id, model_path):
+    agent_list[bot_id] = Agent.load(model_path, action_endpoint=action_endpoint)
+    return
+  
+async def agent_handle_text(message):
+    return await agent_list.get(message.get("recipient_id")).handle_text(text_message=message.get("text"), sender_id=message.get("sender_id"))
+
 async def handle_train_model(bot_id: str, service_url: str, files: List[Optional[UploadFile]]):
     with concurrent.futures.ThreadPoolExecutor() as executor:
         folder_location = os.path.join("uploads", bot_id)
@@ -221,125 +228,129 @@ async def handle_train_model(bot_id: str, service_url: str, files: List[Optional
                     await create_file_train(file_location)
                 except yaml.YAMLError as exc:
                     raise HTTPException(status_code=400, detail="Invalid YAML file") from exc
-        future = executor.submit(train_model, fileTrain.fixed_model_name, fileTrain.domain, fileTrain.config, fileTrain.training_files, "models/")
-        result = await asyncio.wrap_future(future)
+        future_train = executor.submit(train_model, fileTrain.fixed_model_name, fileTrain.domain, fileTrain.config, fileTrain.training_files, "models/")
+        result_train = await asyncio.wrap_future(future_train)
         model_path = os.path.join("models", bot_id + ".tar.gz")
-        agent_list[bot_id] = Agent.load(model_path, action_endpoint=action_endpoint)
+        future_load = executor.submit(agent_load_model, bot_id, model_path)
+        await asyncio.wrap_future(future_load)
         async with httpx.AsyncClient() as client:
             print(service_url)
             if service_url.endswith("/"):
                 url = service_url + "rasa/training-result"
             else:
                 url = service_url + "/rasa/training-result"
-            response = await client.post(url=url, json=result)
+            response = await client.post(url=url, json=result_train)
             print(response.status_code)
-        return result
+        return result_train
 
 async def handle_message(message: any):
-    result = {
-        "sender_id": message.get("recipient_id"),
-        "recipient_id": message.get("sender_id"),
-        "text": "",
-        "channel": message.get("channel"),
-        "type_message": message.get("type_message"), 
-        "metadata": message.get("metadata")
-    }
-    
-    doc = nlp(message.get('text'))
-    # sentiment = doc.sentiment
-    sentiment = doc._.blob.polarity
-    print("Sentiment of user: ", sentiment)  
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        result = {
+            "sender_id": message.get("recipient_id"),
+            "recipient_id": message.get("sender_id"),
+            "text": "",
+            "channel": message.get("channel"),
+            "type_message": message.get("type_message"), 
+            "metadata": message.get("metadata")
+        }
+        
+        doc = nlp(message.get('text'))
+        # sentiment = doc.sentiment
+        sentiment = doc._.blob.polarity
+        print("Sentiment of user: ", sentiment)  
 
-    result_sentiment = {
-        "networkId": message.get("recipient_id"),
-        "message": message.get("text"),
-        "sender": message.get("sender_id"),
-        "createdAt": message.get("metadata").get("comment_created_time"),
-        "type": message.get("type_message"),
-        "parent": {
+        result_sentiment = {
+            "networkId": message.get("recipient_id"),
+            "message": message.get("text"),
+            "sender": message.get("sender_id"),
+            "createdAt": message.get("metadata").get("comment_created_time"),
+            "type": message.get("type_message"),
+            "parent": {
+                "postId": message.get("metadata").get("post_id"),
+                "message": message.get("metadata").get("post_message"),
+                "permalinkUrl": message.get("metadata").get("permalink_url"),
+                "createdAt": message.get("metadata").get("post_created_time")
+            },
+            "sentiment": sentiment,
             "postId": message.get("metadata").get("post_id"),
-            "message": message.get("metadata").get("post_message"),
-            "permalinkUrl": message.get("metadata").get("permalink_url"),
-            "createdAt": message.get("metadata").get("post_created_time")
-        },
-        "sentiment": sentiment,
-        "postId": message.get("metadata").get("post_id"),
-        "commentId": message.get("metadata").get("comment_id"),
-        "parentId": message.get("metadata").get("parent_id")
-    }
+            "commentId": message.get("metadata").get("comment_id"),
+            "parentId": message.get("metadata").get("parent_id")
+        }
 
-    async with httpx.AsyncClient() as client:
-        headers = {'Authorization': '5p3cti4L-t0k3n'}
-        # print("Headers", headers) 
-        # print("Body", result_sentiment) 
-        if social_page_url.endswith("/"):
-            url = social_page_url + "social-message/save"
+        async with httpx.AsyncClient() as client:
+            headers = {'Authorization': '5p3cti4L-t0k3n'}
+            # print("Headers", headers) 
+            # print("Body", result_sentiment) 
+            if social_page_url.endswith("/"):
+                url = social_page_url + "social-message/save"
+            else:
+                url = social_page_url + "/social-message/save"
+            # response_save_sentiment = await client.post(url=url, headers=headers, json=result_sentiment)
+            # print("Response save sentiment", response_save_sentiment)
+
+        if message.get("recipient_id") in agent_list:
+            future = executor.submit(agent_handle_text, message)
+            response = await asyncio.wrap_future(future)
+            # print("--------------------------------")
+            # print("response:", response)
+            # print("--------------------------------")           
+            if response:
+                if len(response) == 0:
+                    result["text"] = "Sorry, I don't understand"
+                else: result["text"] = response[0]["text"]
+            else:
+                fallback_response = await agent_list.get(message.get("recipient_id")).handle_text(DEFAULT_NLU_FALLBACK_INTENT_NAME, sender_id=message.get("sender_id"))
+                print("fallback_response: ", fallback_response)
+                if len(fallback_response) == 0:
+                    result["text"] = "Sorry, I don't understand"
+                else: result["text"] = fallback_response[0]["text"]
         else:
-            url = social_page_url + "/social-message/save"
-        response_save_sentiment = await client.post(url=url, headers=headers, json=result_sentiment)
-        print("Response save sentiment", response_save_sentiment)
+            result["text"] = f"""Model {message.get('recipient_id')} not exist"""
 
-    if message.get("recipient_id") in agent_list:
-        response = await agent_list.get(message.get("recipient_id")).handle_text(text_message=message.get("text"), sender_id=message.get("sender_id"))
-        # print("--------------------------------")
-        # print("response:", response)
-        # print("--------------------------------")           
-        if response:
-            if len(response) == 0:
-                result["text"] = "Sorry, I don't understand"
-            else: result["text"] = response[0]["text"]
-        else:
-            fallback_response = await agent_list.get(message.get("recipient_id")).handle_text(DEFAULT_NLU_FALLBACK_INTENT_NAME, sender_id=message.get("sender_id"))
-            print("fallback_response: ", fallback_response)
-            if len(fallback_response) == 0:
-                result["text"] = "Sorry, I don't understand"
-            else: result["text"] = fallback_response[0]["text"]
-    else:
-        result["text"] = f"""Model {message.get('recipient_id')} not exist"""
+        
+        doc = nlp(result["text"])
+        sentiment = doc._.blob.polarity
+        print("Sentiment of bot: ", sentiment) 
 
-    
-    doc = nlp(result["text"])
-    sentiment = doc._.blob.polarity
-    print("Sentiment of bot: ", sentiment) 
-
-    result_sentiment = {
-        "networkId": message.get("recipient_id"),
-        "message": result["text"],
-        "sender": message.get("recipient_id"),
-        "createdAt": datetime.now().isoformat(),
-        "type": "Bot",
-        "parent": {
+        result_sentiment = {
+            "networkId": message.get("recipient_id"),
+            "message": result["text"],
+            "sender": message.get("recipient_id"),
+            "createdAt": datetime.now().isoformat(),
+            "type": "Bot",
+            "parent": {
+                "postId": message.get("metadata").get("post_id"),
+                "message": message.get("metadata").get("post_message"),
+                "permalinkUrl": message.get("metadata").get("permalink_url"),
+                "createdAt": message.get("metadata").get("post_created_time")
+            },
+            "sentiment": sentiment,
             "postId": message.get("metadata").get("post_id"),
-            "message": message.get("metadata").get("post_message"),
-            "permalinkUrl": message.get("metadata").get("permalink_url"),
-            "createdAt": message.get("metadata").get("post_created_time")
-        },
-        "sentiment": sentiment,
-        "postId": message.get("metadata").get("post_id"),
-        "commentId": message.get("metadata").get("comment_id"),
-        "parentId": message.get("metadata").get("parent_id")
-    }
+            "commentId": message.get("metadata").get("comment_id"), # Id bot cmt reply có éo đâu :)
+            "parentId": message.get("metadata").get("comment_id") # Id này là Id bot reply được rồi
+            # Này phải để page trên fb reply gửi về lại mới có comment_id mới được
+        }
 
-    async with httpx.AsyncClient() as client:
-        headers = {'Authorization': '5p3cti4L-t0k3n'}
-        # print("Headers", headers) 
-        # print("Body", result_sentiment) 
-        if social_page_url.endswith("/"):
-            url = social_page_url + "social-message/save"
-        else:
-            url = social_page_url + "/social-message/save"
-        response_save_sentiment = await client.post(url=url, headers=headers, json=result_sentiment)
-        print("Response save sentiment", response_save_sentiment)
+        async with httpx.AsyncClient() as client:
+            headers = {'Authorization': '5p3cti4L-t0k3n'}
+            # print("Headers", headers) 
+            # print("Body", result_sentiment) 
+            if social_page_url.endswith("/"):
+                url = social_page_url + "social-message/save"
+            else:
+                url = social_page_url + "/social-message/save"
+            # response_save_sentiment = await client.post(url=url, headers=headers, json=result_sentiment)
+            # print("Response save sentiment", response_save_sentiment)
 
-    async with httpx.AsyncClient() as client:
-        # print(message.get("service_url"))
-        if message.get("service_url").endswith("/"):
-            url = message.get("service_url") + "rasa/conversations/activities"
-        else:
-            url = message.get("service_url") + "/rasa/conversations/activities"
-        response = await client.post(url=url, json=result)
-        # print(response.status_code)
-    return result
+        async with httpx.AsyncClient() as client:
+            # print(message.get("service_url"))
+            if message.get("service_url").endswith("/"):
+                url = message.get("service_url") + "rasa/conversations/activities"
+            else:
+                url = message.get("service_url") + "/rasa/conversations/activities"
+            response = await client.post(url=url, json=result)
+            # print(response.status_code)
+        return result
 
 @app.post('/train')
 async def handling_model(background_tasks: BackgroundTasks, bot_id: str = Form(), service_url: str = Form(), files: List[Optional[UploadFile]] = File(...)):
