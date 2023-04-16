@@ -7,10 +7,9 @@ from rasa.utils.endpoints import EndpointConfig
 from rasa.shared.constants import DEFAULT_NLU_FALLBACK_INTENT_NAME
 from rasa.core.http_interpreter import RasaNLUHttpInterpreter
 from textblob import TextBlob
-from spacytextblob.spacytextblob import SpacyTextBlob
-from dotenv import load_dotenv
-from datetime import datetime
+from dotenv import load_dotenv, dotenv_values
 from urllib.parse import urljoin
+from spacytextblob.spacytextblob import SpacyTextBlob
 
 import spacy
 import httpx
@@ -22,6 +21,10 @@ import asyncio
 import glob
 
 load_dotenv()
+config_env = dotenv_values(".env")
+
+nlp = spacy.load("en_core_web_trf")
+
 app = FastAPI()
 origins = ["*"]
 app.add_middleware(
@@ -40,13 +43,10 @@ from rasa_sdk.executor import CollectingDispatcher
 from textblob import TextBlob
 """
 
-
-# SOCIAL_PAGE_URL=os.getenv('SOCIAL_PAGE_URL')
-# RASA_ACTION_URL=os.getenv('RASA_ACTION_URL')
-social_page_url="http://localhost:3000/"
-action_endpoint = EndpointConfig(url="http://localhost:5055/webhook")
+social_page_url = config_env["SOCIAL_PAGE_URL"]
+action_endpoint = EndpointConfig(url=config_env["RASA_ACTION_URL"])
 http_interpreter = RasaNLUHttpInterpreter(EndpointConfig(
-    url="http://localhost:5005/",
+    url=config_env["RASA_BOT_URL"],
     params={},
     headers={
         "Content-Type": "application/json",
@@ -63,20 +63,7 @@ class FileTrain:
         self.domain = domain
         self.config = config
         self.training_files = training_files
-      
-# def create_sentiment_action(): 
-#     return f"""
-# class ActionSentiment(Action):
-#     def name(self) -> Text:
-#         return "action_sentiment"
-#     def run(self, dispatcher: CollectingDispatcher, tracker: Tracker, domain: Dict[Text, Any]) -> List[Dict[Text, Any]]:
-#         message = tracker.latest_message.get("text")
-#         blob = TextBlob(message)
-#         sentiment = blob.sentiment.polarity
-#         print("blob.sentiment.polarity: ", sentiment)
-#         return [SlotSet("textblob_sentiment", {{"polarity": blob.sentiment.polarity, "subjectivity": blob.sentiment.subjectivity, "sentiment": sentiment}})]
-# """
-      
+
 def create_sample_action(class_name, action_name, utter_key): 
     return f"""
 class {class_name}(Action):
@@ -130,10 +117,6 @@ def create_file_train(pathFile: str):
                             if action_name not in utter_action_list:
                                 utter_action_list.append(action_name)
                                 buffer.write(create_sample_action(class_name, action_name, key))
-                # data_file["slots"] = {}
-                # data_file["slots"]["textblob_sentiment"] = {}
-                # data_file["slots"]["textblob_sentiment"]["type"] = "any"
-                # data_file["slots"]["textblob_sentiment"]["mappings"] = [{"type": "custom"}]
 
             if file.name.endswith("stories.yml") or file.name.endswith("stories.yaml"):
                 data_file = yaml.safe_load(file)
@@ -216,6 +199,29 @@ async def httpx_post(domain, endpoint, body, headers={}):
         response = await client.post(url=url, headers=headers, json=body)
     return response
 
+async def save_social_message(message, sentiment):
+    if message.get("type_message") == "Comment":
+        comment_info = {
+            "networkId": message.get("recipient_id"),
+            "message": message.get("text"),
+            "sender": message.get("sender_id"),
+            "createdAt": message.get("metadata").get("comment_created_time"),
+            "type": message.get("type_message"),
+            "parent": {
+                "postId": message.get("metadata").get("post_id"),
+                "message": message.get("metadata").get("post_message"),
+                "permalinkUrl": message.get("metadata").get("permalink_url"),
+                "createdAt": message.get("metadata").get("post_created_time")
+            },
+            "sentiment": sentiment,
+            "postId": message.get("metadata").get("post_id"),
+            "commentId": message.get("metadata").get("comment_id"),
+            "parentId": message.get("metadata").get("parent_id")
+        }
+        social_page_headers = {'Authorization': config_env["AUTHORIZATION_API_KEY"]}
+        response_save_comment = await httpx_post(domain=social_page_url, endpoint="/social-message/save", body=comment_info, headers=social_page_headers)
+        print("Response save comment: ", response_save_comment)
+
 async def handle_train_model(bot_id: str, service_url: str, files: List[Optional[UploadFile]]):
     folder_location = os.path.join("uploads", bot_id)
     if not os.path.exists(folder_location):
@@ -239,7 +245,7 @@ async def handle_train_model(bot_id: str, service_url: str, files: List[Optional
     model_path = os.path.join("models", bot_id + ".tar.gz")
     agent_list[bot_id] = Agent.load(model_path, action_endpoint=action_endpoint)
     response = await httpx_post(domain=service_url, endpoint="/rasa/training-result", body=result_train)
-    print("Status code", response.status_code)
+    # print("Status code", response.status_code)
     return response
 
 async def handle_message(message: any):
@@ -256,42 +262,10 @@ async def handle_message(message: any):
     # sentiment = doc.sentiment
     sentiment = doc._.blob.polarity
     print("Sentiment of user: ", sentiment)  
-
-    if message.get("type_message") == "Comment":
-        result_sentiment = {
-            "networkId": message.get("recipient_id"),
-            "message": message.get("text"),
-            "sender": message.get("sender_id"),
-            "createdAt": message.get("metadata").get("comment_created_time"),
-            "type": message.get("type_message"),
-            "parent": {
-                "postId": message.get("metadata").get("post_id"),
-                "message": message.get("metadata").get("post_message"),
-                "permalinkUrl": message.get("metadata").get("permalink_url"),
-                "createdAt": message.get("metadata").get("post_created_time")
-            },
-            "sentiment": sentiment,
-            "postId": message.get("metadata").get("post_id"),
-            "commentId": message.get("metadata").get("comment_id"),
-            "parentId": message.get("metadata").get("parent_id")
-        }
-
-        async with httpx.AsyncClient() as client:
-            headers = {'Authorization': '5p3cti4L-t0k3n'}
-            # print("Headers", headers) 
-            # print("Body", result_sentiment) 
-            if social_page_url.endswith("/"):
-                url = social_page_url + "social-message/save"
-            else:
-                url = social_page_url + "/social-message/save"
-            # response_save_sentiment = await client.post(url=url, headers=headers, json=result_sentiment)
-            # print("Response save sentiment", response_save_sentiment)
+    await save_social_message(message, sentiment)
 
     if message.get("recipient_id") in agent_list:
-        response = await agent_list.get(message.get("recipient_id")).handle_text(text_message=message.get("text"), sender_id=message.get("sender_id"))
-        # print("--------------------------------")
-        # print("response:", response)
-        # print("--------------------------------")           
+        response = await agent_list.get(message.get("recipient_id")).handle_text(text_message=message.get("text"), sender_id=message.get("sender_id"))          
         if response:
             if len(response) == 0:
                 result["text"] = "Sorry, I don't understand"
@@ -306,8 +280,15 @@ async def handle_message(message: any):
         result["text"] = f"""Model {message.get('recipient_id')} not exist"""
 
     response = await httpx_post(domain=message.get("service_url"), endpoint="/rasa/conversations/activities", body=result)
-    print("Status code", response.status_code)
     return response
+
+async def handle_save_message_bot(message: any):
+    doc = nlp(message.get('text'))
+    sentiment = doc._.blob.polarity
+    print("Sentiment of bot: ", sentiment)
+    # print("Message of bot: ", message)
+    await save_social_message(message, sentiment)
+    return "Save social message successfully"
 
 async def handle_train_model_thread(bot_id: str, service_url: str, files: List[Optional[UploadFile]]):
     with concurrent.futures.ThreadPoolExecutor() as executor:
@@ -317,6 +298,11 @@ async def handle_train_model_thread(bot_id: str, service_url: str, files: List[O
 async def handle_message_thread(message: any):
     with concurrent.futures.ThreadPoolExecutor() as executor:
         future = executor.submit(async_function_executor, handle_message, message=message)
+        return await asyncio.wrap_future(future)
+    
+async def handle_save_message_bot_thread(message: any):
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        future = executor.submit(async_function_executor, handle_save_message_bot, message=message)
         return await asyncio.wrap_future(future)
 
 @app.post('/train')
@@ -330,12 +316,17 @@ async def handling_message(background_tasks: BackgroundTasks, request: Request):
     background_tasks.add_task(handle_message_thread, message)
     return {"message": "Send webhook successfully"}
 
+@app.post('/save-message-bot')
+async def handling_sentiment(background_tasks: BackgroundTasks, request: Request):
+    message = await request.json()
+    background_tasks.add_task(handle_save_message_bot_thread, message)
+    return {"message": "Send webhook successfully"}
+
 create_file_custom_action()
 print("utter_action_list", utter_action_list)
+
 load_all_model()
 print(agent_list)
-
-nlp = spacy.load("en_core_web_trf")
 
 @spacy.Language.component("sentiment_analysis")
 def analyze_sentiment(doc):

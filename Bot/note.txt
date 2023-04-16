@@ -1,0 +1,25 @@
+API get page access token
+https://graph.facebook.com/[PageID]?fields=access_token&access_token=[UserAccessToken] GET
+Response:
+{"access_token":"EAAw6ZBcjrGmUBAFh458IxZAEPZCtBRZB1WHSdRPwqzopcPId9u5n4HXScZB2uBvZCsZBP16mbXnrcHKnjDZBAMZB7SfmvqhHgGYj42MtnIY728pwmtFjLd5QLKZBH3cyR2g2xJRdhhOQOLdTTdHvniL5sj2yWUX4IQmOWo2fZCoGuIfj4jh2cmJ6c2BaX9g00Dy89Y3gHcF5m36mgj0F77n95Mu","id":"110895945300156"}
+
+API subscribe
+https://graph.facebook.com/[PageID]/subscribed_apps?access_token=[PageAccessToken] POST
+Body:
+{
+  "access_token":"[PageAccessToken]",
+  "subscribed_fields":"feed"
+}
+Response:
+{"success":true}
+
+pip install fastapi
+pip install rasa
+pip install textblob
+pip install dotenv
+pip install urllib3
+pip install spacytextblob
+pip install spacy
+python -m spacy download en_core_web_trf
+pip install httpx
+pip install glob

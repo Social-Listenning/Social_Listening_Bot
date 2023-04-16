@@ -2,7 +2,7 @@ const axios = require('axios');
 const moment = require('moment');
 const { checkPageWorking } = require('../utils');
 
-const { BOT_RASA_URL, PAGE_ACCESS_TOKEN } = process.env;
+const { BOT_CONNECTOR_URL, BOT_URL, PAGE_ACCESS_TOKEN } = process.env;
 
 module.exports = {
     fbCommentSendToBot: async (value) => {
@@ -21,7 +21,7 @@ module.exports = {
                         recipient_id: botId,
                         channel: 'facebook',
                         type_message: 'Comment',
-                        service_url: 'http://localhost:8080',
+                        service_url: BOT_CONNECTOR_URL,
                         metadata: {
                             post_id: post_id,
                             post_message: resultInformationPost.data.message,
@@ -33,14 +33,14 @@ module.exports = {
                             comment_created_time: moment.unix(created_time).toISOString(),
                         },
                     };
-                    console.log('Message: ', requestBody);
-
-                    const result = await axios.post(`${BOT_RASA_URL}/webhook/rasa`, requestBody);
+                    // console.log('Message: ', requestBody);
+                    const result = await axios.post(`${BOT_URL}/webhook/rasa`, requestBody);
                     return result.data;
                 }
             }
             return;
         } catch (error) {
+            console.log(error);
             console.log(error.message);
             return error.message;
         }
@@ -55,15 +55,15 @@ module.exports = {
                     recipient_id: recipient && recipient.id,
                     channel: 'facebook',
                     type_message: 'Message',
-                    service_url: 'http://localhost:8080',
+                    service_url: BOT_CONNECTOR_URL,
                 };
-                console.log('Message: ', requestBody);
-                const result = await axios.post(`${BOT_RASA_URL}/webhook/rasa`, requestBody);
-                console.log(result.data);
+                // console.log('Message: ', requestBody);
+                const result = await axios.post(`${BOT_URL}/webhook/rasa`, requestBody);
                 return result.data;
             }
             return;
         } catch (error) {
+            console.log(error);
             console.log(error.message);
             return error.message;
         }
@@ -80,23 +80,22 @@ module.exports = {
                         recipient_id: metadata && metadata.phone_number_id,
                         channel: messaging_product || 'whatsapp',
                         type_message: 'Message',
-                        service_url: 'http://localhost:8080',
+                        service_url: BOT_CONNECTOR_URL,
                     };
-                    console.log('Message: ', requestBody);
-                    const result = await axios.post(`${BOT_RASA_URL}/webhook/rasa`, requestBody);
-                    console.log(result.data);
+                    // console.log('Message: ', requestBody);
+                    const result = await axios.post(`${BOT_URL}/webhook/rasa`, requestBody);
                     return result.data;
                 }
             }
             return;
         } catch (error) {
+            console.log(error);
             console.log(error.message);
             return error.message;
         }
     },
     telegramSendToBot: async (value) => {
         try {
-            console.log(value);
             const { from, chat, text } = value;
             if (await checkPageWorking(metadata.phone_number_id)) {
                 if (from && !from.is_bot) {
@@ -106,16 +105,16 @@ module.exports = {
                         recipient_id: chat && chat.id,
                         channel: 'telegram',
                         type_message: 'Message',
-                        service_url: 'http://localhost:8080',
+                        service_url: BOT_CONNECTOR_URL,
                     };
-                    console.log('Message: ', requestBody);
-                    const result = await axios.post(`${BOT_RASA_URL}/webhook/rasa`, requestBody);
-                    console.log(result.data);
+                    // console.log('Message: ', requestBody);
+                    const result = await axios.post(`${BOT_URL}/webhook/rasa`, requestBody);
                     return result.data;
                 }
             }
             return;
         } catch (error) {
+            console.log(error);
             console.log(error.message);
             return error.message;
         }

@@ -1,7 +1,9 @@
 const axios = require('axios');
+const moment = require('moment');
+
 require('dotenv').config();
 
-const { PAGE_ACCESS_TOKEN, TELEGRAM_TOKEN } = process.env;
+const { BOT_CONNECTOR_URL, BOT_URL, PAGE_ACCESS_TOKEN, TELEGRAM_TOKEN } = process.env;
 
 module.exports = {
     replyMessage: async (message) => {
@@ -29,10 +31,27 @@ module.exports = {
                             `${process.env.GRAPH_FACEBOOK_API}/v14.0/${message.metadata.comment_id}/comments?access_token=${PAGE_ACCESS_TOKEN}`,
                             requestBody
                         );
+
+                        await axios.post(`${BOT_URL}/save-message-bot`, {
+                            text: message.text,
+                            sender_id: message.sender_id,
+                            recipient_id: message.recipient_id,
+                            channel: message.channel,
+                            type_message: message.type_message,
+                            service_url: BOT_CONNECTOR_URL,
+                            metadata: {
+                                post_id: message.metadata.post_id,
+                                post_message: message.metadata.post_message,
+                                post_created_time: message.metadata.post_created_time,
+                                permalink_url: message.metadata.permalink_url,
+                                comment_id: result.data.id,
+                                parent_id: message.metadata.comment_id,
+                                comment_created_time: new Date().toISOString(),
+                            },
+                        });
                     }
                 }
                 if (message.channel.toLowerCase() === 'whatsapp') {
-                    console.log(message);
                     if (message.type_message && message.type_message.toLowerCase() === 'message') {
                         const requestBody = {
                             to: message.recipient_id,
@@ -54,8 +73,6 @@ module.exports = {
                     }
                 }
                 if (message.channel.toLowerCase() === 'telegram') {
-                    console.log(message);
-
                     if (message.type_message && message.type_message.toLowerCase() === 'message') {
                         const requestBody = {
                             chat_id: message.from,
@@ -68,12 +85,11 @@ module.exports = {
                     }
                 }
             }
-            console.log(PAGE_ACCESS_TOKEN);
-            console.log('Comment id successfully:', result.data);
+            console.log('Message id successfully:', result.data);
             return result;
         } catch (error) {
-            console.log(error.message);
             console.log(error);
+            console.log(error.message);
             return error.message;
         }
     },
