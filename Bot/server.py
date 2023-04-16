@@ -10,6 +10,7 @@ from textblob import TextBlob
 from spacytextblob.spacytextblob import SpacyTextBlob
 from dotenv import load_dotenv
 from datetime import datetime
+from urllib.parse import urljoin
 
 import spacy
 import httpx
@@ -105,7 +106,7 @@ class {class_name}(Action):
         return []
 """
 
-async def create_file_train(pathFile: str):
+def create_file_train(pathFile: str):
     data_file = None
     folder_actions_location = os.path.join("actions")
     file_actions_location = os.path.join(folder_actions_location, "actions.py")
@@ -198,67 +199,65 @@ def load_all_model():
             model_id = os.path.splitext(os.path.splitext(os.path.basename(filename))[0])[0]
             agent_list[model_id] = Agent.load(model_path, action_endpoint=action_endpoint)
 
-def train_model(model_name, domain, config, training_files, model_path):
-    return train(domain=domain, config=config, training_files=training_files, output=model_path, fixed_model_name=model_name)
+def async_function_executor(func, *args, **kwargs):
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    future = loop.create_future()
+    async def wrapper():
+        result = await func(*args, **kwargs)
+        future.set_result(result) 
+    loop.run_until_complete(wrapper())
+    loop.close()
+    return future.result()
 
-def agent_load_model(bot_id, model_path):
-    agent_list[bot_id] = Agent.load(model_path, action_endpoint=action_endpoint)
-    return
-  
-async def agent_handle_text(message):
-    return await agent_list.get(message.get("recipient_id")).handle_text(text_message=message.get("text"), sender_id=message.get("sender_id"))
+async def httpx_post(domain, endpoint, body, headers={}):
+    url = urljoin(domain, endpoint) 
+    async with httpx.AsyncClient() as client:
+        response = await client.post(url=url, headers=headers, json=body)
+    return response
 
 async def handle_train_model(bot_id: str, service_url: str, files: List[Optional[UploadFile]]):
-    with concurrent.futures.ThreadPoolExecutor() as executor:
-        folder_location = os.path.join("uploads", bot_id)
-        if not os.path.exists(folder_location):
-            os.makedirs(folder_location)
-        fileTrain = FileTrain(bot_id, '', '', [])    
-        for file in files:
-            if file.filename.endswith('.yml') or file.filename.endswith(".yaml"):
-                try:            
-                    file_location = os.path.join(folder_location, file.filename)
-                    with open(file_location, "wb") as buffer:
-                        shutil.copyfileobj(file.file, buffer)
-                        fileName=os.path.splitext(os.path.basename(file.filename))[0]
-                        if hasattr(fileTrain, fileName):
-                            setattr(fileTrain, fileName, file_location)
-                        else:
-                            fileTrain.training_files.append(file_location)
-                    await create_file_train(file_location)
-                except yaml.YAMLError as exc:
-                    raise HTTPException(status_code=400, detail="Invalid YAML file") from exc
-        future_train = executor.submit(train_model, fileTrain.fixed_model_name, fileTrain.domain, fileTrain.config, fileTrain.training_files, "models/")
-        result_train = await asyncio.wrap_future(future_train)
-        model_path = os.path.join("models", bot_id + ".tar.gz")
-        future_load = executor.submit(agent_load_model, bot_id, model_path)
-        await asyncio.wrap_future(future_load)
-        async with httpx.AsyncClient() as client:
-            print(service_url)
-            if service_url.endswith("/"):
-                url = service_url + "rasa/training-result"
-            else:
-                url = service_url + "/rasa/training-result"
-            response = await client.post(url=url, json=result_train)
-            print(response.status_code)
-        return result_train
+    folder_location = os.path.join("uploads", bot_id)
+    if not os.path.exists(folder_location):
+        os.makedirs(folder_location)
+    file_train = FileTrain(bot_id, '', '', [])    
+    for file in files:
+        if file.filename.endswith('.yml') or file.filename.endswith(".yaml"):
+            try:            
+                file_location = os.path.join(folder_location, file.filename)
+                with open(file_location, "wb") as buffer:
+                    shutil.copyfileobj(file.file, buffer)
+                    fileName=os.path.splitext(os.path.basename(file.filename))[0]
+                    if hasattr(file_train, fileName):
+                        setattr(file_train, fileName, file_location)
+                    else:
+                        file_train.training_files.append(file_location)
+                create_file_train(file_location)
+            except yaml.YAMLError as exc:
+                raise HTTPException(status_code=400, detail="Invalid YAML file") from exc
+    result_train = train(domain=file_train.domain, config=file_train.config, training_files=file_train.training_files, output="models/", fixed_model_name=file_train.fixed_model_name)
+    model_path = os.path.join("models", bot_id + ".tar.gz")
+    agent_list[bot_id] = Agent.load(model_path, action_endpoint=action_endpoint)
+    response = await httpx_post(domain=service_url, endpoint="/rasa/training-result", body=result_train)
+    print("Status code", response.status_code)
+    return response
 
 async def handle_message(message: any):
-    with concurrent.futures.ThreadPoolExecutor() as executor:
-        result = {
-            "sender_id": message.get("recipient_id"),
-            "recipient_id": message.get("sender_id"),
-            "text": "",
-            "channel": message.get("channel"),
-            "type_message": message.get("type_message"), 
-            "metadata": message.get("metadata")
-        }
-        
-        doc = nlp(message.get('text'))
-        # sentiment = doc.sentiment
-        sentiment = doc._.blob.polarity
-        print("Sentiment of user: ", sentiment)  
+    result = {
+        "sender_id": message.get("recipient_id"),
+        "recipient_id": message.get("sender_id"),
+        "text": "",
+        "channel": message.get("channel"),
+        "type_message": message.get("type_message"), 
+        "metadata": message.get("metadata")
+    }
+    
+    doc = nlp(message.get('text'))
+    # sentiment = doc.sentiment
+    sentiment = doc._.blob.polarity
+    print("Sentiment of user: ", sentiment)  
 
+    if message.get("type_message") == "Comment":
         result_sentiment = {
             "networkId": message.get("recipient_id"),
             "message": message.get("text"),
@@ -288,79 +287,47 @@ async def handle_message(message: any):
             # response_save_sentiment = await client.post(url=url, headers=headers, json=result_sentiment)
             # print("Response save sentiment", response_save_sentiment)
 
-        if message.get("recipient_id") in agent_list:
-            future = executor.submit(agent_handle_text, message)
-            response = await asyncio.wrap_future(future)
-            # print("--------------------------------")
-            # print("response:", response)
-            # print("--------------------------------")           
-            if response:
-                if len(response) == 0:
-                    result["text"] = "Sorry, I don't understand"
-                else: result["text"] = response[0]["text"]
-            else:
-                fallback_response = await agent_list.get(message.get("recipient_id")).handle_text(DEFAULT_NLU_FALLBACK_INTENT_NAME, sender_id=message.get("sender_id"))
-                print("fallback_response: ", fallback_response)
-                if len(fallback_response) == 0:
-                    result["text"] = "Sorry, I don't understand"
-                else: result["text"] = fallback_response[0]["text"]
+    if message.get("recipient_id") in agent_list:
+        response = await agent_list.get(message.get("recipient_id")).handle_text(text_message=message.get("text"), sender_id=message.get("sender_id"))
+        # print("--------------------------------")
+        # print("response:", response)
+        # print("--------------------------------")           
+        if response:
+            if len(response) == 0:
+                result["text"] = "Sorry, I don't understand"
+            else: result["text"] = response[0]["text"]
         else:
-            result["text"] = f"""Model {message.get('recipient_id')} not exist"""
+            fallback_response = await agent_list.get(message.get("recipient_id")).handle_text(DEFAULT_NLU_FALLBACK_INTENT_NAME, sender_id=message.get("sender_id"))
+            print("fallback_response: ", fallback_response)
+            if len(fallback_response) == 0:
+                result["text"] = "Sorry, I don't understand"
+            else: result["text"] = fallback_response[0]["text"]
+    else:
+        result["text"] = f"""Model {message.get('recipient_id')} not exist"""
 
-        
-        doc = nlp(result["text"])
-        sentiment = doc._.blob.polarity
-        print("Sentiment of bot: ", sentiment) 
+    response = await httpx_post(domain=message.get("service_url"), endpoint="/rasa/conversations/activities", body=result)
+    print("Status code", response.status_code)
+    return response
 
-        result_sentiment = {
-            "networkId": message.get("recipient_id"),
-            "message": result["text"],
-            "sender": message.get("recipient_id"),
-            "createdAt": datetime.now().isoformat(),
-            "type": "Bot",
-            "parent": {
-                "postId": message.get("metadata").get("post_id"),
-                "message": message.get("metadata").get("post_message"),
-                "permalinkUrl": message.get("metadata").get("permalink_url"),
-                "createdAt": message.get("metadata").get("post_created_time")
-            },
-            "sentiment": sentiment,
-            "postId": message.get("metadata").get("post_id"),
-            "commentId": message.get("metadata").get("comment_id"), # Id bot cmt reply có éo đâu :)
-            "parentId": message.get("metadata").get("comment_id") # Id này là Id bot reply được rồi
-            # Này phải để page trên fb reply gửi về lại mới có comment_id mới được
-        }
+async def handle_train_model_thread(bot_id: str, service_url: str, files: List[Optional[UploadFile]]):
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        future = executor.submit(async_function_executor, handle_train_model, bot_id=bot_id, service_url=service_url, files=files)
+        return await asyncio.wrap_future(future)
 
-        async with httpx.AsyncClient() as client:
-            headers = {'Authorization': '5p3cti4L-t0k3n'}
-            # print("Headers", headers) 
-            # print("Body", result_sentiment) 
-            if social_page_url.endswith("/"):
-                url = social_page_url + "social-message/save"
-            else:
-                url = social_page_url + "/social-message/save"
-            # response_save_sentiment = await client.post(url=url, headers=headers, json=result_sentiment)
-            # print("Response save sentiment", response_save_sentiment)
-
-        async with httpx.AsyncClient() as client:
-            # print(message.get("service_url"))
-            if message.get("service_url").endswith("/"):
-                url = message.get("service_url") + "rasa/conversations/activities"
-            else:
-                url = message.get("service_url") + "/rasa/conversations/activities"
-            response = await client.post(url=url, json=result)
-            # print(response.status_code)
-        return result
+async def handle_message_thread(message: any):
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        future = executor.submit(async_function_executor, handle_message, message=message)
+        return await asyncio.wrap_future(future)
 
 @app.post('/train')
 async def handling_model(background_tasks: BackgroundTasks, bot_id: str = Form(), service_url: str = Form(), files: List[Optional[UploadFile]] = File(...)):
-    background_tasks.add_task(handle_train_model, bot_id, service_url, files)
+    background_tasks.add_task(handle_train_model_thread, bot_id, service_url, files)
     return {"message": "Send webhook successfully"}
 
 @app.post('/webhook/rasa')
 async def handling_message(background_tasks: BackgroundTasks, request: Request):
     message = await request.json()
-    background_tasks.add_task(handle_message, message)
+    background_tasks.add_task(handle_message_thread, message)
     return {"message": "Send webhook successfully"}
 
 create_file_custom_action()

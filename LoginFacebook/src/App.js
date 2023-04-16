@@ -5,7 +5,7 @@ function App() {
         window.fbAsyncInit = function () {
             window.FB.init({
                 // This is App ID
-                appId: '594535438672562',
+                appId: '189583720076123',
                 cookie: true,
                 xfbml: true,
                 version: 'v14.0',
@@ -37,7 +37,7 @@ function App() {
                 console.log(response);
             },
             {
-                config_id: '2550922511728404', // configuration ID goes here
+                config_id: '3408294016088035', // configuration ID goes here
 
             }
         );
