@@ -97,26 +97,22 @@ responses:
         - text: '10000 USD is the price of {product_name} as of now.'
 
     utter_sorry:
-        - text: "I'm sorry, I didn't quite understand what you were asking."
-        - text: "I'm sorry, it looks like I'm having trouble processing your request. Let me try again."
-        - text: 'I apologize for any confusion or frustration. '
-        - text: "I'm sorry, I don't have the information you're looking for at the moment."
-        - text: "My apologies, it seems like there was an error on our end. We're working to fix it as soon as possible."
-        - text: "I'm sorry if I'm not meeting your expectations. Please let me know how I can improve."
+        - text: "I'm sorry to hear that our service did not meet your expectations."
+        - text: "I'm sorry to hear that you're not satisfied with our service."
+        - text: "I'm sorry that you had a negative experience with our service."
+        - text: "I'm sorry to hear that our service didn't meet your expectations."
+        - text: "I'm sorry if I'm not meeting your expectations."
         - text: "I'm sorry if I'm not being very helpful."
         - text: "I'm sorry if I'm taking too long to respond. I'll try to be quicker in the future."
-        - text: "I apologize if my previous response wasn't helpful. Let me know if there's anything else I can do for you."
+        - text: "I apologize if my previous response wasn't helpful."
         - text: "I'm sorry if I'm not providing the level of assistance you need."
-        - text: "I'm sorry if I'm not answering your question adequately. "
-        - text: "I'm sorry for any inconvenience. Let me know how I can make things better for you."
-        - text: "I'm sorry, it looks like there's been a miscommunication. "
-        - text: "I'm sorry if I'm not providing the information you're looking for. "
-        - text: "I'm sorry if my response wasn't clear. Let me try to explain it better."
-        - text: 'I apologize for any frustration. '
-        - text: "I'm sorry if I'm not meeting your expectations. Please let me know how I can improve."
-        - text: "I'm sorry, it seems like we're having some technical difficulties."
-        - text: "I apologize for any inconvenience. Let me know if there's anything I can do to help."
-        - text: "I'm sorry if I'm not fully understanding your request. "
+        - text: "I'm sorry if I'm not answering your question adequately."
+        - text: "I'm sorry for any inconvenience."
+        - text: "I'm sorry, it looks like there's been a miscommunication."
+        - text: "I'm sorry if I'm not providing the information you're looking for."
+        - text: 'I apologize for any frustration.'
+        - text: 'I apologize for any inconvenience.'
+        - text: "I'm sorry that you've had a negative experience with our service"
 
     # utter_greet_with_name:
     #     - text: "Xin chào {name}!\n{name} cần Bot giúp gì không?"
@@ -133,10 +129,10 @@ actions:
     # - action_utter_goodbye
     - action_hello_world
 
-# actions_mapping:
-#     introduce_name:
-#         - action_sentiment
-#         - action_utter_introduce_name
+actions_mapping:
+    introduce_name:
+        - action_sentiment
+        - action_utter_introduce_name
 
 session_config:
     session_expiration_time: 60
