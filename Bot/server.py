@@ -9,9 +9,7 @@ from rasa.core.http_interpreter import RasaNLUHttpInterpreter
 from textblob import TextBlob
 from dotenv import load_dotenv, dotenv_values
 from urllib.parse import urljoin
-from spacytextblob.spacytextblob import SpacyTextBlob
 
-import spacy
 import httpx
 import yaml
 import shutil
@@ -20,10 +18,12 @@ import concurrent.futures
 import asyncio
 import glob
 
+import nltk
+nltk.download('vader_lexicon')
+from nltk.sentiment import SentimentIntensityAnalyzer
+
 load_dotenv()
 config_env = dotenv_values(".env")
-
-nlp = spacy.load("en_core_web_trf")
 
 app = FastAPI()
 origins = ["*"]
@@ -181,6 +181,11 @@ def load_all_model():
         if os.path.exists(model_path):
             model_id = os.path.splitext(os.path.splitext(os.path.basename(filename))[0])[0]
             agent_list[model_id] = Agent.load(model_path, action_endpoint=action_endpoint)
+# import multiprocessing
+#  with multiprocessing.Pool(processes=4) as pool:
+#         future = pool.apply_async(async_function_executor, handle_train_model, bot_id=bot_id, service_url=service_url, files=files)
+#         result = future.get()
+#         return result
 
 def async_function_executor(func, *args, **kwargs):
     loop = asyncio.new_event_loop()
@@ -258,9 +263,9 @@ async def handle_message(message: any):
         "metadata": message.get("metadata")
     }
     
-    doc = nlp(message.get('text'))
-    # sentiment = doc.sentiment
-    sentiment = doc._.blob.polarity
+    sia = SentimentIntensityAnalyzer()
+    score = sia.polarity_scores(message.get("text"))
+    sentiment = score.get("compound")
     print("Sentiment of user: ", sentiment)  
     await save_social_message(message, sentiment)
 
@@ -283,8 +288,9 @@ async def handle_message(message: any):
     return response
 
 async def handle_save_message_bot(message: any):
-    doc = nlp(message.get('text'))
-    sentiment = doc._.blob.polarity
+    sia = SentimentIntensityAnalyzer()
+    score = sia.polarity_scores(message.get("text"))
+    sentiment = score.get("compound")
     print("Sentiment of bot: ", sentiment)
     # print("Message of bot: ", message)
     await save_social_message(message, sentiment)
@@ -327,26 +333,3 @@ print("utter_action_list", utter_action_list)
 
 load_all_model()
 print(agent_list)
-
-@spacy.Language.component("sentiment_analysis")
-def analyze_sentiment(doc):
-    sentiments = []
-    for sentence in doc.sents:
-        blob = TextBlob(sentence.text)
-        # print(blob.sentiment)
-        # print(blob.sentiment_assessments)
-        sentiments.append(blob.sentiment.polarity)
-    doc.sentiment = sum(sentiments) / len(sentiments)
-    return doc
-
-nlp.add_pipe("sentiment_analysis", name="sentiment_analysis", last=True)
-nlp.add_pipe("spacytextblob")
-
-@app.post('/sentiment')
-async def handling_sentiment(request: Request):
-    message = await request.json()
-    doc = nlp(message.get('text'))
-    print(doc.sentiment)
-    print(doc._.blob.polarity)
-    print(doc._.blob.subjectivity)
-    return doc.sentiment

@@ -45,8 +45,7 @@ responses:
         - text: "Hi there! How are you? What's your name?"
         - text: "Hello, I'm glad you're here. May I know your name?"
         - text: 'Hey, good to have you. Can you introduce yourself to me?'
-        # - text: 'Konbawa, Kimi no namae wa?'
-
+        
     utter_goodbye:
         - text: 'Goodbye! It was nice talking to you.'
         - text: 'Have a great day! Goodbye.'
@@ -70,7 +69,6 @@ responses:
         - text: 'Thanks for the chat. Goodbye!'
         - text: 'Bye'
         - text: 'See you later!'
-        # - text: 'Mata kondo!'
 
     utter_introduce_name:
         - text: 'Hi {user_name}, are you interested in knowing the price of any of our products?'
