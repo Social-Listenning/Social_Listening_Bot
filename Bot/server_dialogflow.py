@@ -24,6 +24,8 @@ def get_client_options(location):
 def get_code_ex(ex):
     if "400" in str(ex):
         return 400
+    elif "404" in str(ex):
+        return 404
     elif "409" in str(ex):
         return 409
     else:
@@ -191,8 +193,6 @@ async def update_intent(project_id: str, location: str, agent_id: str, intent_id
             intent.training_phrases.append(phrase)
         updated_intent = await intents_client.update_intent(request={"intent": intent})
         print("Intent updated successfully: {}".format(updated_intent.name))
-        await update_flow_agent(project_id, location, agent_id, updated_intent.name)
-
         training_phrases = []
         for phrase in updated_intent.training_phrases:
             training_phrase = {"parts": [], "repeat_count": 1}
@@ -210,8 +210,8 @@ async def update_intent(project_id: str, location: str, agent_id: str, intent_id
         }
     except Exception as ex:        
         response.status_code = get_code_ex(ex)
-        print('Error creating agent: {}'.format(ex)) 
-        return {"message": "Error creating agent: {}".format(ex)}
+        print('Error updating agent: {}'.format(ex)) 
+        return {"message": "Error updating agent: {}".format(ex)}
 
 @app.delete("/delete-intent/projects/{project_id}/locations/{location}/agents/{agent_id}/intents/{intent_id}")
 async def delete_intent(project_id: str, location: str, agent_id: str, intent_id: str, request: fastapi.Request, response: fastapi.Response):
@@ -366,7 +366,7 @@ async def create_entity_type(project_id: str, location: str, agent_id: str, requ
     entity_type_info = await request.json()
     
     client_options = get_client_options(location)
-    client = EntityTypesAsyncClient(client_options=client_options)
+    entity_type_client = EntityTypesAsyncClient(client_options=client_options)
 
     agents_client = AgentsAsyncClient()
     parent_entity_type = agents_client.agent_path(project_id, location, agent_id)
@@ -378,7 +378,7 @@ async def create_entity_type(project_id: str, location: str, agent_id: str, requ
     entity_type.auto_expansion_mode = entity_type_info.get("auto_expansion_mode", "AUTO_EXPANSION_MODE_UNSPECIFIED")
 
     try:
-        new_entity_type = await client.create_entity_type(request={"parent": parent_entity_type, "entity_type": entity_type})
+        new_entity_type = await entity_type_client.create_entity_type(request={"parent": parent_entity_type, "entity_type": entity_type})
         entities = []
         for entity in new_entity_type.entities:
             synonyms = []
@@ -388,11 +388,115 @@ async def create_entity_type(project_id: str, location: str, agent_id: str, requ
         return {
             "name": new_entity_type.name,
             "display_name": new_entity_type.display_name,
-            "kind": entity_type.kind.name,
-            "auto_expansion_mode": entity_type.auto_expansion_mode.name,
+            "kind": new_entity_type.kind.name,
+            "auto_expansion_mode": new_entity_type.auto_expansion_mode.name,
             "entities": entities,
         }
     except Exception as ex:        
         response.status_code = get_code_ex(ex)
         print('Error creating entity type: {}'.format(ex)) 
         return {"message": "Error creating entity type: {}".format(ex)}
+
+@app.get("/get-entity-type/projects/{project_id}/locations/{location}/agents/{agent_id}/entityTypes/{entity_type_id}")
+async def get_entity_type(project_id: str, location: str, agent_id: str, entity_type_id: str, request: fastapi.Request, response: fastapi.Response):
+    client_options = get_client_options(location)
+    entity_type_client = EntityTypesAsyncClient(client_options=client_options)
+    entity_type_name = entity_type_client.entity_type_path(project_id, location, agent_id, entity_type_id)
+    try:
+        entity_type = await entity_type_client.get_entity_type(request={"name":entity_type_name})
+        entities = []
+        for entity in entity_type.entities:
+            synonyms = []
+            for synonym in entity.synonyms:
+                synonyms.append(synonym)
+            entities.append({"value": entity.value, "synonyms": synonyms})
+        return {
+            "name": entity_type.name,
+            "display_name": entity_type.display_name,
+            "kind": entity_type.kind.name,
+            "auto_expansion_mode": entity_type.auto_expansion_mode.name,
+            "entities": entities,
+        }
+    except Exception as ex:        
+        response.status_code = get_code_ex(ex)
+        print('Error getting entity type: {}'.format(ex)) 
+        return {"message": "Error getting entity type: {}".format(ex)}
+    
+
+@app.get("/get-list-entity-type/projects/{project_id}/locations/{location}/agents/{agent_id}")
+async def get_list_entity_type(project_id: str, location: str, agent_id: str, request: fastapi.Request, response: fastapi.Response):
+    client_options = get_client_options(location)    
+    agents_client = AgentsAsyncClient()
+    parent_intent_entity_type = agents_client.agent_path(project_id, location, agent_id)
+    entity_type_client = EntityTypesAsyncClient(client_options=client_options)
+    try:
+        pager = await entity_type_client.list_entity_types(request={"parent":parent_intent_entity_type})
+        entity_types = []
+        async for page in pager.pages:
+            for entity_type in page.entity_types:
+                entities = []
+                for entity in entity_type.entities:
+                    synonyms = []
+                    for synonym in entity.synonyms:
+                        synonyms.append(synonym)
+                    entities.append({"value": entity.value, "synonyms": synonyms})
+                entity_types.append({
+                    "name": entity_type.name,
+                    "display_name": entity_type.display_name,
+                    "kind": entity_type.kind.name,
+                    "auto_expansion_mode": entity_type.auto_expansion_mode.name,
+                    "entities": entities
+                })
+        return entity_types
+    except Exception as ex:        
+        response.status_code = get_code_ex(ex)
+        print('Error getting entity type: {}'.format(ex)) 
+        return {"message": "Error getting entity type: {}".format(ex)}
+    
+
+@app.delete("/delete-entity-type/projects/{project_id}/locations/{location}/agents/{agent_id}/entityTypes/{entity_type_id}")
+async def delete_entity_type(project_id: str, location: str, agent_id: str, entity_type_id: str, request: fastapi.Request, response: fastapi.Response):
+    client_options = get_client_options(location)
+    entity_type_client = EntityTypesAsyncClient(client_options=client_options)
+    entity_type_name = entity_type_client.entity_type_path(project_id, location, agent_id, entity_type_id)
+    try:
+        await entity_type_client.delete_entity_type(request={"name":entity_type_name})
+        return {"message": "Entity type deleted successfully: {}".format(entity_type_name)}
+    except Exception as ex:        
+        response.status_code = get_code_ex(ex)
+        print('Error getting entity type: {}'.format(ex)) 
+        return {"message": "Error getting entity type: {}".format(ex)}
+
+
+@app.patch("/update-entity-type/projects/{project_id}/locations/{location}/agents/{agent_id}/entityTypes/{entity_type_id}")
+async def update_entity_type(project_id: str, location: str, agent_id: str, entity_type_id: str, request: fastapi.Request, response: fastapi.Response):
+    entity_type_info = await request.json()
+    client_options = get_client_options(location)
+    entity_type_client = EntityTypesAsyncClient(client_options=client_options)
+    entity_type_name = entity_type_client.entity_type_path(project_id, location, agent_id, entity_type_id)
+    try:
+        entity_type = await entity_type_client.get_entity_type(name=entity_type_name)
+        entity_type.display_name = entity_type_info.get("display_name")
+        entity_type.kind = entity_type_info.get("kind", "KIND_LIST")
+        entity_type.entities = entity_type_info.get("entities", [])
+        entity_type.auto_expansion_mode = entity_type_info.get("auto_expansion_mode", "AUTO_EXPANSION_MODE_UNSPECIFIED")
+        updated_entity_type = await entity_type_client.update_entity_type(request={"entity_type": entity_type})
+        print("Entity type updated successfully: {}".format(updated_entity_type.name))
+
+        entities = []
+        for entity in updated_entity_type.entities:
+            synonyms = []
+            for synonym in entity.synonyms:
+                synonyms.append(synonym)
+            entities.append({"value": entity.value, "synonyms": synonyms})
+        return {
+            "name": updated_entity_type.name,
+            "display_name": updated_entity_type.display_name,
+            "kind": updated_entity_type.kind.name,
+            "auto_expansion_mode": updated_entity_type.auto_expansion_mode.name,
+            "entities": entities,
+        }
+    except Exception as ex:        
+        response.status_code = get_code_ex(ex)
+        print('Error updating entity type: {}'.format(ex)) 
+        return {"message": "Error updating entity type: {}".format(ex)}
