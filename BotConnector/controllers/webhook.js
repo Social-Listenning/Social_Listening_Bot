@@ -31,7 +31,6 @@ module.exports = {
                     const value =
                         (entry.changes && entry.changes[0].value) ||
                         (entry.messaging && entry.messaging[0]);
-                    // console.log('Value: ', value);
                     if (value && value.comment_id && value.message) {
                         await webhookService.fbCommentSendToBot(value);
                     } else if (value && value.sender && value.recipient && value.message) {
