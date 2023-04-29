@@ -1,8 +1,8 @@
 from fastapi import FastAPI, UploadFile, File
 from google.oauth2 import service_account
 from google.auth.transport.requests import Request
-from google.cloud.dialogflowcx_v3 import Intent, Agent
-from google.cloud.dialogflowcx_v3 import AgentsAsyncClient, IntentsAsyncClient, FlowsAsyncClient, SessionsAsyncClient
+from google.cloud.dialogflowcx_v3 import Intent, Agent, EntityType
+from google.cloud.dialogflowcx_v3 import AgentsAsyncClient, IntentsAsyncClient, EntityTypesAsyncClient, FlowsAsyncClient, SessionsAsyncClient
 from google.cloud.dialogflowcx_v3 import TextInput, QueryInput, QueryParameters, TransitionRoute, UpdateFlowRequest, Fulfillment
 from google.api_core.client_options import ClientOptions
 
@@ -240,6 +240,7 @@ async def detect_intent(project_id: str, location: str, agent_id: str, session_i
     try:
         deteced_intent = await sessions_client.detect_intent(request={"session": session_name, "query_input": query_input, "query_params": query_params})
         print('Intent detected')
+        print(deteced_intent)
         query_result = deteced_intent.query_result
         result = {
             "text": query_result.text,
@@ -357,3 +358,41 @@ async def delete_agent(project_id: str, location: str, agent_id: str, request: f
         response.status_code = get_code_ex(ex)
         print('Error deleting agent: {}'.format(ex)) 
         return {"message": "Error deleting agent: {}".format(ex)}
+    
+
+# Entity type
+@app.post("/create-entity-type/projects/{project_id}/locations/{location}/agents/{agent_id}")
+async def create_entity_type(project_id: str, location: str, agent_id: str, request: fastapi.Request, response: fastapi.Response):
+    entity_type_info = await request.json()
+    
+    client_options = get_client_options(location)
+    client = EntityTypesAsyncClient(client_options=client_options)
+
+    agents_client = AgentsAsyncClient()
+    parent_entity_type = agents_client.agent_path(project_id, location, agent_id)
+
+    entity_type = EntityType()
+    entity_type.display_name = entity_type_info.get("display_name")
+    entity_type.kind = entity_type_info.get("kind", "KIND_LIST")
+    entity_type.entities = entity_type_info.get("entities", [])
+    entity_type.auto_expansion_mode = entity_type_info.get("auto_expansion_mode", "AUTO_EXPANSION_MODE_UNSPECIFIED")
+
+    try:
+        new_entity_type = await client.create_entity_type(request={"parent": parent_entity_type, "entity_type": entity_type})
+        entities = []
+        for entity in new_entity_type.entities:
+            synonyms = []
+            for synonym in entity.synonyms:
+                synonyms.append(synonym)
+            entities.append({"value": entity.value, "synonyms": synonyms})
+        return {
+            "name": new_entity_type.name,
+            "display_name": new_entity_type.display_name,
+            "kind": entity_type.kind.name,
+            "auto_expansion_mode": entity_type.auto_expansion_mode.name,
+            "entities": entities,
+        }
+    except Exception as ex:        
+        response.status_code = get_code_ex(ex)
+        print('Error creating entity type: {}'.format(ex)) 
+        return {"message": "Error creating entity type: {}".format(ex)}
