@@ -2,7 +2,7 @@ from fastapi import FastAPI, UploadFile, File
 from google.oauth2 import service_account
 from google.auth.transport.requests import Request
 from google.cloud.dialogflowcx_v3 import Intent, Agent, EntityType
-from google.cloud.dialogflowcx_v3 import AgentsAsyncClient, IntentsAsyncClient, EntityTypesAsyncClient, FlowsAsyncClient, SessionsAsyncClient
+from google.cloud.dialogflowcx_v3 import AgentsAsyncClient, IntentsAsyncClient, EntityTypesAsyncClient, FlowsAsyncClient, SessionsAsyncClient, PagesAsyncClient, TransitionRouteGroupsAsyncClient
 from google.cloud.dialogflowcx_v3 import TextInput, QueryInput, QueryParameters, TransitionRoute, UpdateFlowRequest, Fulfillment
 from google.api_core.client_options import ClientOptions
 
@@ -65,7 +65,7 @@ async def create_intent(project_id: str, location: str, agent_id: str, request: 
 
     intents_client = IntentsAsyncClient(client_options=client_options)
     agents_client = AgentsAsyncClient()
-    parent_intent = agents_client.agent_path(project_id, location, agent_id)
+    intents_parent = agents_client.agent_path(project_id, location, agent_id)
 
     intent = Intent()
     intent.display_name = intent_info.get("display_name")
@@ -87,7 +87,7 @@ async def create_intent(project_id: str, location: str, agent_id: str, request: 
     # parameter.redact = False
     # intent.parameters.append(parameter)
     try:
-        new_intent = await intents_client.create_intent(parent=parent_intent, intent=intent)
+        new_intent = await intents_client.create_intent(parent=intents_parent, intent=intent)
         print("Intent created successfully: {}".format(new_intent.name))
         await update_flow_agent(project_id, location, agent_id, new_intent.name)
 
@@ -143,9 +143,9 @@ async def get_list_intent(project_id: str, location: str, agent_id: str, request
     client_options = get_client_options(location)
     intents_client = IntentsAsyncClient(client_options=client_options)
     agents_client = AgentsAsyncClient()
-    parent_intent = agents_client.agent_path(project_id, location, agent_id)
+    intents_parent = agents_client.agent_path(project_id, location, agent_id)
     try:
-        pager = await intents_client.list_intents(request={"parent": parent_intent})
+        pager = await intents_client.list_intents(request={"parent": intents_parent})
         intents = []
         async for page in pager.pages:
             for intent in page.intents:
@@ -184,13 +184,13 @@ async def update_intent(project_id: str, location: str, agent_id: str, intent_id
         intent.description = intent_info.get("description")
         intent.priority = intent_info.get("priority")
         intent.is_fallback = intent_info.get("is_fallback") 
-        intent.training_phrases = []
-        for phrase in intent_info.get("training_phrase", []):
-            training_phrase = Intent.TrainingPhrase()
-            for part in phrase.get("parts", []):
-                training_phrase.parts.append(Intent.TrainingPhrase.Part(text=part.get("text"), parameter_id=part.get("parameter_id")))
-            training_phrase.repeat_count = phrase.get("repeat_count")
-            intent.training_phrases.append(phrase)
+        intent.training_phrases = intent_info.get("training_phrase", [])
+        # for phrase in intent_info.get("training_phrase", []):
+        #     training_phrase = Intent.TrainingPhrase()
+        #     for part in phrase.get("parts", []):
+        #         training_phrase.parts.append(Intent.TrainingPhrase.Part(text=part.get("text"), parameter_id=part.get("parameter_id")))
+        #     training_phrase.repeat_count = phrase.get("repeat_count")
+        #     intent.training_phrases.append(phrase)
         updated_intent = await intents_client.update_intent(request={"intent": intent})
         print("Intent updated successfully: {}".format(updated_intent.name))
         training_phrases = []
@@ -217,8 +217,22 @@ async def update_intent(project_id: str, location: str, agent_id: str, intent_id
 async def delete_intent(project_id: str, location: str, agent_id: str, intent_id: str, request: fastapi.Request, response: fastapi.Response):
     client_options = get_client_options(location)
     intents_client = IntentsAsyncClient(client_options=client_options)
+    flows_client = FlowsAsyncClient(client_options=client_options)
+    
     intent_name = intents_client.intent_path(project_id, location, agent_id, intent_id)
+    flows_parent = f"projects/{project_id}/locations/{location}/agents/{agent_id}"
     try:
+        flows_pager = await flows_client.list_flows(request={"parent": flows_parent})
+        async for flows_page in flows_pager.pages:
+            for flow in flows_page.flows:
+                modified_routes = []
+                for route in flow.transition_routes:
+                    if route.intent != intent_name:
+                        modified_routes.append(route)
+                    if len(modified_routes) != len(flow.transition_routes):
+                        flow.transition_routes = modified_routes
+                        await flows_client.update_flow(request={"flow": flow})
+
         await intents_client.delete_intent(request={"name": intent_name})    
         return {"message": "Intent deleted successfully: {}".format(intent_name)}
     except Exception as ex:
@@ -266,7 +280,7 @@ async def create_agent(project_id: str, location: str, request: fastapi.Request,
     agent = Agent()
     agent.display_name = agent_info.get("display_name")
     agent.default_language_code = agent_info.get("default_language_code")
-    agent.time_zone = "Asia/Bangkok"
+    agent.time_zone = agent_info.get("time_zone")
     try:
         new_agent = await agents_client.create_agent(request={"parent": f"projects/{project_id}/locations/{location}", "agent": agent})
         return {
@@ -274,7 +288,7 @@ async def create_agent(project_id: str, location: str, request: fastapi.Request,
             "display_name": new_agent.display_name,
             "default_language_code": new_agent.default_language_code,
             "time_zone": new_agent.time_zone,
-            "start_flow": agent.start_flow,
+            "start_flow": new_agent.start_flow,
         }
     except Exception as ex:        
         response.status_code = get_code_ex(ex)
@@ -369,7 +383,7 @@ async def create_entity_type(project_id: str, location: str, agent_id: str, requ
     entity_type_client = EntityTypesAsyncClient(client_options=client_options)
 
     agents_client = AgentsAsyncClient()
-    parent_entity_type = agents_client.agent_path(project_id, location, agent_id)
+    entity_types_parent = agents_client.agent_path(project_id, location, agent_id)
 
     entity_type = EntityType()
     entity_type.display_name = entity_type_info.get("display_name")
@@ -378,7 +392,7 @@ async def create_entity_type(project_id: str, location: str, agent_id: str, requ
     entity_type.auto_expansion_mode = entity_type_info.get("auto_expansion_mode", "AUTO_EXPANSION_MODE_UNSPECIFIED")
 
     try:
-        new_entity_type = await entity_type_client.create_entity_type(request={"parent": parent_entity_type, "entity_type": entity_type})
+        new_entity_type = await entity_type_client.create_entity_type(request={"parent": entity_types_parent, "entity_type": entity_type})
         entities = []
         for entity in new_entity_type.entities:
             synonyms = []
@@ -421,16 +435,15 @@ async def get_entity_type(project_id: str, location: str, agent_id: str, entity_
         response.status_code = get_code_ex(ex)
         print('Error getting entity type: {}'.format(ex)) 
         return {"message": "Error getting entity type: {}".format(ex)}
-    
 
 @app.get("/get-list-entity-type/projects/{project_id}/locations/{location}/agents/{agent_id}")
 async def get_list_entity_type(project_id: str, location: str, agent_id: str, request: fastapi.Request, response: fastapi.Response):
     client_options = get_client_options(location)    
     agents_client = AgentsAsyncClient()
-    parent_intent_entity_type = agents_client.agent_path(project_id, location, agent_id)
+    entity_types_parent = agents_client.agent_path(project_id, location, agent_id)
     entity_type_client = EntityTypesAsyncClient(client_options=client_options)
     try:
-        pager = await entity_type_client.list_entity_types(request={"parent":parent_intent_entity_type})
+        pager = await entity_type_client.list_entity_types(request={"parent":entity_types_parent})
         entity_types = []
         async for page in pager.pages:
             for entity_type in page.entity_types:
@@ -452,7 +465,6 @@ async def get_list_entity_type(project_id: str, location: str, agent_id: str, re
         response.status_code = get_code_ex(ex)
         print('Error getting entity type: {}'.format(ex)) 
         return {"message": "Error getting entity type: {}".format(ex)}
-    
 
 @app.delete("/delete-entity-type/projects/{project_id}/locations/{location}/agents/{agent_id}/entityTypes/{entity_type_id}")
 async def delete_entity_type(project_id: str, location: str, agent_id: str, entity_type_id: str, request: fastapi.Request, response: fastapi.Response):
@@ -466,7 +478,6 @@ async def delete_entity_type(project_id: str, location: str, agent_id: str, enti
         response.status_code = get_code_ex(ex)
         print('Error getting entity type: {}'.format(ex)) 
         return {"message": "Error getting entity type: {}".format(ex)}
-
 
 @app.patch("/update-entity-type/projects/{project_id}/locations/{location}/agents/{agent_id}/entityTypes/{entity_type_id}")
 async def update_entity_type(project_id: str, location: str, agent_id: str, entity_type_id: str, request: fastapi.Request, response: fastapi.Response):
