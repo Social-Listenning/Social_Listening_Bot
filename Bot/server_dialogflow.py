@@ -8,6 +8,7 @@ from google.api_core.client_options import ClientOptions
 
 from google.protobuf.field_mask_pb2 import FieldMask
 
+import httpx
 import fastapi
 import json
 import os
@@ -49,9 +50,10 @@ async def update_flow_agent(project_id: str, location: str, agent_id: str, inten
         print("Error updating flow: {}".format(ex)) 
 
 @app.post("/get-token")
-async def get_token(file: UploadFile = File(...)):
+async def get_token(contents: str, file: UploadFile = File(...)):
     SCOPES = ['https://www.googleapis.com/auth/cloud-platform']
-    contents = await file.read()
+    if contents is None:
+        contents = await file.read()
     credentials = service_account.Credentials.from_service_account_info(
         json.loads(contents), scopes=SCOPES)
     credentials.refresh(Request())
@@ -73,6 +75,7 @@ async def create_intent(project_id: str, location: str, agent_id: str, request: 
     intent.priority = intent_info.get("priority")
     intent.is_fallback = intent_info.get("is_fallback") 
     intent.training_phrases = intent_info.get("training_phrases") 
+    intent.parameters = intent_info.get("parameters") 
 
     # for phrase in intent_info.get("training_phrase", []):
     #     training_phrase = Intent.TrainingPhrase()
@@ -81,11 +84,6 @@ async def create_intent(project_id: str, location: str, agent_id: str, request: 
     #     training_phrase.repeat_count = phrase.get("repeat_count")
     #     intent.training_phrases.append(phrase)
 
-    # parameter = Intent.Parameter()
-    # parameter.entity_type = "@sys.any"
-    # parameter.is_list = False
-    # parameter.redact = False
-    # intent.parameters.append(parameter)
     try:
         new_intent = await intents_client.create_intent(parent=intents_parent, intent=intent)
         print("Intent created successfully: {}".format(new_intent.name))
@@ -98,12 +96,20 @@ async def create_intent(project_id: str, location: str, agent_id: str, request: 
                 training_phrase["parts"].append({"text": part.text, "parameter_id": part.parameter_id})
             training_phrase["repeat_count"] = phrase.repeat_count
             training_phrases.append(training_phrase)
-
+        parameters = []
+        for parameter in new_intent.parameters:
+            parameters.append({
+                "id": parameter.id,
+                "entity_type": parameter.entity_type,
+                "is_list": parameter.is_list,
+            })
         return {
             "name": new_intent.name,
             "display_name": new_intent.display_name,
             "training_phrases": training_phrases,
-            "priority": new_intent.priority,
+            "priority": new_intent.priority,            
+            "description": intent.description,
+            "parameters": parameters
         }
     except Exception as ex:
         response.status_code = get_code_ex(ex)
@@ -124,14 +130,22 @@ async def get_intent(project_id: str, location: str, agent_id: str, intent_id: s
                 training_phrase["parts"].append({"text": part.text, "parameter_id": part.parameter_id})
             training_phrase["repeat_count"] = phrase.repeat_count
             training_phrases.append(training_phrase)
+
+        parameters = []
+        for parameter in intent.parameters:
+            parameters.append({
+                "id": parameter.id,
+                "entity_type": parameter.entity_type,
+                "is_list": parameter.is_list,
+            })
         return {
             "name": intent.name,
             "display_name": intent.display_name,
             "training_phrases": training_phrases,
             "is_fallback": intent.is_fallback,
             "priority": intent.priority,
-            "is_fallback": intent.is_fallback,
             "description": intent.description,
+            "parameters": intent.parameters
         }
     except Exception as ex:
         response.status_code = get_code_ex(ex)
@@ -149,7 +163,6 @@ async def get_list_intent(project_id: str, location: str, agent_id: str, request
         intents = []
         async for page in pager.pages:
             for intent in page.intents:
-                print(intent)
                 training_phrases = []
                 for phrase in intent.training_phrases:
                     training_phrase = {"parts": [], "repeat_count": 1}
@@ -157,6 +170,13 @@ async def get_list_intent(project_id: str, location: str, agent_id: str, request
                         training_phrase["parts"].append({"text": part.text, "parameter_id": part.parameter_id})
                     training_phrase["repeat_count"] = phrase.repeat_count
                     training_phrases.append(training_phrase)
+                parameters = []
+                for parameter in intent.parameters:
+                    parameters.append({
+                        "id": parameter.id,
+                        "entity_type": parameter.entity_type,
+                        "is_list": parameter.is_list,
+                    })
                 agent_json = {
                     "name": intent.name,
                     "display_name": intent.display_name,
@@ -164,6 +184,7 @@ async def get_list_intent(project_id: str, location: str, agent_id: str, request
                     "priority": intent.priority,
                     "is_fallback": intent.is_fallback,
                     "description": intent.description,
+                    "parameters": parameters
                 }
                 intents.append(agent_json)
         return intents
@@ -200,6 +221,13 @@ async def update_intent(project_id: str, location: str, agent_id: str, intent_id
                 training_phrase["parts"].append({"text": part.text, "parameter_id": part.parameter_id})
             training_phrase["repeat_count"] = phrase.repeat_count
             training_phrases.append(training_phrase)
+        parameters = []
+        for parameter in intent.parameters:
+            parameters.append({
+                "id": parameter.id,
+                "entity_type": parameter.entity_type,
+                "is_list": parameter.is_list,
+            })
         return {
             "name": updated_intent.name,
             "display_name": updated_intent.display_name,
@@ -207,6 +235,7 @@ async def update_intent(project_id: str, location: str, agent_id: str, intent_id
             "priority": intent.priority,
             "is_fallback": intent.is_fallback,
             "description": intent.description,
+            "parameters": parameters
         }
     except Exception as ex:        
         response.status_code = get_code_ex(ex)
@@ -470,8 +499,23 @@ async def get_list_entity_type(project_id: str, location: str, agent_id: str, re
 async def delete_entity_type(project_id: str, location: str, agent_id: str, entity_type_id: str, request: fastapi.Request, response: fastapi.Response):
     client_options = get_client_options(location)
     entity_type_client = EntityTypesAsyncClient(client_options=client_options)
+    intents_client = IntentsAsyncClient(client_options=client_options)
     entity_type_name = entity_type_client.entity_type_path(project_id, location, agent_id, entity_type_id)
     try:
+        intents_pager = await intents_client.list_intents(request={"parent": f"projects/{project_id}/locations/{location}/agents/{agent_id}"})
+        async for intents_page in intents_pager.pages:
+            for intent in intents_page.intents:
+                modified_parameters = []
+                for parameter in intent.parameters:
+                    for training_phrase in intent.training_phrases:
+                        for part in training_phrase.parts:
+                            if part.parameter_id == parameter.id:
+                                part.parameter_id = None
+                    if parameter.entity_type != entity_type_name:
+                        modified_parameters.append(parameter.entity_type)
+                    if len(modified_parameters) != len(intent.parameters):
+                        intent.parameters = modified_parameters
+                        await intents_client.update_intent(request={"intent": intent})
         await entity_type_client.delete_entity_type(request={"name":entity_type_name})
         return {"message": "Entity type deleted successfully: {}".format(entity_type_name)}
     except Exception as ex:        
@@ -511,3 +555,35 @@ async def update_entity_type(project_id: str, location: str, agent_id: str, enti
         response.status_code = get_code_ex(ex)
         print('Error updating entity type: {}'.format(ex)) 
         return {"message": "Error updating entity type: {}".format(ex)}
+
+#List locations
+@app.get("/get-list-location/projects/{project_id}")
+async def update_entity_type(project_id: str, request: fastapi.Request, response: fastapi.Response):
+    try:
+        with open('./credential.json', 'r') as file:
+            token = await get_token(contents=file.read())
+            async with httpx.AsyncClient() as client:
+                resultJSON = await client.get(url=f"https://dialogflow.googleapis.com/v3/projects/{project_id}/locations", headers={"Authorization": "Bearer " + token.get("access_token")})
+                result = resultJSON.json()
+                locations = []
+                for location in result.get("locations"):
+                    locations.append(location.get("locationId"))
+                return locations
+    except Exception as ex:        
+        response.status_code = get_code_ex(ex)
+        print('Error getting location: {}'.format(ex)) 
+        return {"message": "Error getting location: {}".format(ex)}
+    
+@app.get("/get-location/projects/{project_id}/locations/{location}")
+async def update_entity_type(project_id: str, location: str, request: fastapi.Request, response: fastapi.Response):
+    try:
+        with open('./credential.json', 'r') as file:
+            token = await get_token(contents=file.read())
+            async with httpx.AsyncClient() as client:
+                resultJSON = await client.get(url=f"https://dialogflow.googleapis.com/v3/projects/{project_id}/locations/{location}", headers={"Authorization": "Bearer " + token.get("access_token")})
+                result = resultJSON.json()
+                return result
+    except Exception as ex:        
+        response.status_code = get_code_ex(ex)
+        print('Error getting location: {}'.format(ex)) 
+        return {"message": "Error getting location: {}".format(ex)}
