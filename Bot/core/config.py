@@ -15,5 +15,6 @@ class Settings(BaseSettings):
     ACTION_ENDPOINT = config_env["RASA_ACTION_URL"]
     BACKEND_ENPOINT = config_env["SOCIAL_PAGE_URL"]
     BACKEND_AUTH_HEADER = config_env["AUTHORIZATION_API_KEY"]
+    FACEBOOK_GRAPH_ENDPOINT = config_env["FACEBOOK_GRAPH_ENDPOINT"]
 
 settings = Settings()
