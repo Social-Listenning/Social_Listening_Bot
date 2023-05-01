@@ -1,4 +1,4 @@
-from fastapi import FastAPI, UploadFile, File
+from fastapi import APIRouter, UploadFile, File
 from google.oauth2 import service_account
 from google.auth.transport.requests import Request
 from google.cloud.dialogflowcx_v3 import Intent, Agent, EntityType
@@ -13,7 +13,8 @@ import fastapi
 import json
 import os
 
-app = FastAPI()
+router = APIRouter()
+
 os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "./credential.json"
 
 def get_client_options(location):
@@ -49,7 +50,7 @@ async def update_flow_agent(project_id: str, location: str, agent_id: str, inten
     except Exception as ex:
         print("Error updating flow: {}".format(ex)) 
 
-@app.post("/get-token")
+@router.post("/get-token")
 async def get_token(contents: str, file: UploadFile = File(...)):
     SCOPES = ['https://www.googleapis.com/auth/cloud-platform']
     if contents is None:
@@ -60,7 +61,7 @@ async def get_token(contents: str, file: UploadFile = File(...)):
     return {"access_token": credentials.token}
 
 # Intent
-@app.post("/create-intent/projects/{project_id}/locations/{location}/agents/{agent_id}")
+@router.post("/create-intent/projects/{project_id}/locations/{location}/agents/{agent_id}")
 async def create_intent(project_id: str, location: str, agent_id: str, request: fastapi.Request, response: fastapi.Response):
     intent_info = await request.json()
     client_options = get_client_options(location)
@@ -116,7 +117,7 @@ async def create_intent(project_id: str, location: str, agent_id: str, request: 
         print("Error creating intent: {}".format(ex)) 
         return {"message": "Error creating intent: {}".format(ex)}
 
-@app.get("/get-intent/projects/{project_id}/locations/{location}/agents/{agent_id}/intents/{intent_id}")
+@router.get("/get-intent/projects/{project_id}/locations/{location}/agents/{agent_id}/intents/{intent_id}")
 async def get_intent(project_id: str, location: str, agent_id: str, intent_id: str, request: fastapi.Request, response: fastapi.Response):
     client_options = get_client_options(location)
     intents_client = IntentsAsyncClient(client_options=client_options)
@@ -152,7 +153,7 @@ async def get_intent(project_id: str, location: str, agent_id: str, intent_id: s
         print("Error getting intent: {}".format(ex)) 
         return {"message": "Error getting intent: {}".format(ex)}
 
-@app.get("/get-list-intent/projects/{project_id}/locations/{location}/agents/{agent_id}")
+@router.get("/get-list-intent/projects/{project_id}/locations/{location}/agents/{agent_id}")
 async def get_list_intent(project_id: str, location: str, agent_id: str, request: fastapi.Request, response: fastapi.Response):
     client_options = get_client_options(location)
     intents_client = IntentsAsyncClient(client_options=client_options)
@@ -193,7 +194,7 @@ async def get_list_intent(project_id: str, location: str, agent_id: str, request
         print("Error getting intent: {}".format(ex)) 
         return {"message": "Error getting intent: {}".format(ex)}
 
-@app.patch("/update-intent/projects/{project_id}/locations/{location}/agents/{agent_id}/intents/{intent_id}")
+@router.patch("/update-intent/projects/{project_id}/locations/{location}/agents/{agent_id}/intents/{intent_id}")
 async def update_intent(project_id: str, location: str, agent_id: str, intent_id: str, request: fastapi.Request, response: fastapi.Response):
     intent_info = await request.json()
     client_options = get_client_options(location)
@@ -242,7 +243,7 @@ async def update_intent(project_id: str, location: str, agent_id: str, intent_id
         print('Error updating agent: {}'.format(ex)) 
         return {"message": "Error updating agent: {}".format(ex)}
 
-@app.delete("/delete-intent/projects/{project_id}/locations/{location}/agents/{agent_id}/intents/{intent_id}")
+@router.delete("/delete-intent/projects/{project_id}/locations/{location}/agents/{agent_id}/intents/{intent_id}")
 async def delete_intent(project_id: str, location: str, agent_id: str, intent_id: str, request: fastapi.Request, response: fastapi.Response):
     client_options = get_client_options(location)
     intents_client = IntentsAsyncClient(client_options=client_options)
@@ -269,7 +270,7 @@ async def delete_intent(project_id: str, location: str, agent_id: str, intent_id
         print("Error deleting intent: {}".format(ex)) 
         return {"message": "Error deleting intent: {}".format(ex)}
 
-@app.post("/detect-intent/projects/{project_id}/locations/{location}/agents/{agent_id}/sessions/{session_id}")
+@router.post("/detect-intent/projects/{project_id}/locations/{location}/agents/{agent_id}/sessions/{session_id}")
 async def detect_intent(project_id: str, location: str, agent_id: str, session_id: str, request: fastapi.Request, response: fastapi.Response):   
     message_info = await request.json()
     client_options = get_client_options(location)
@@ -301,7 +302,7 @@ async def detect_intent(project_id: str, location: str, agent_id: str, session_i
 
 
 # Agent
-@app.post("/create-agent/projects/{project_id}/locations/{location}")
+@router.post("/create-agent/projects/{project_id}/locations/{location}")
 async def create_agent(project_id: str, location: str, request: fastapi.Request, response: fastapi.Response):
     agent_info = await request.json()
     client_options = get_client_options(location)
@@ -324,7 +325,7 @@ async def create_agent(project_id: str, location: str, request: fastapi.Request,
         print('Error creating agent: {}'.format(ex)) 
         return {"message": "Error creating agent: {}".format(ex)}
 
-@app.get("/get-agent/projects/{project_id}/locations/{location}/agents/{agent_id}")
+@router.get("/get-agent/projects/{project_id}/locations/{location}/agents/{agent_id}")
 async def get_agent(project_id: str, location: str, agent_id: str, request: fastapi.Request, response: fastapi.Response):
     client_options = get_client_options(location)
     agents_client = AgentsAsyncClient(client_options=client_options)
@@ -343,7 +344,7 @@ async def get_agent(project_id: str, location: str, agent_id: str, request: fast
         print('Error getting agent: {}'.format(ex)) 
         return {"message": "Error getting agent: {}".format(ex)}
 
-@app.get("/get-list-agent/projects/{project_id}/locations/{location}")
+@router.get("/get-list-agent/projects/{project_id}/locations/{location}")
 async def get_list_agent(project_id: str, location: str, request: fastapi.Request, response: fastapi.Response):
     client_options = get_client_options(location)
     agents_client = AgentsAsyncClient(client_options=client_options)
@@ -366,7 +367,7 @@ async def get_list_agent(project_id: str, location: str, request: fastapi.Reques
         print('Error getting list agent: {}'.format(ex)) 
         return {"message": "Error getting list agent: {}".format(ex)}
     
-@app.patch("/update-agent/projects/{project_id}/locations/{location}/agents/{agent_id}")
+@router.patch("/update-agent/projects/{project_id}/locations/{location}/agents/{agent_id}")
 async def update_agent(project_id: str, location: str, agent_id: str, request: fastapi.Request, response: fastapi.Response):
     agent_info = await request.json()
     client_options = get_client_options(location)
@@ -389,7 +390,7 @@ async def update_agent(project_id: str, location: str, agent_id: str, request: f
         print('Error creating agent: {}'.format(ex)) 
         return {"message": "Error creating agent: {}".format(ex)}
     
-@app.delete("/delete-agent/projects/{project_id}/locations/{location}/agents/{agent_id}")
+@router.delete("/delete-agent/projects/{project_id}/locations/{location}/agents/{agent_id}")
 async def delete_agent(project_id: str, location: str, agent_id: str, request: fastapi.Request, response: fastapi.Response):
     client_options = get_client_options(location)
     agents_client = AgentsAsyncClient(client_options=client_options)
@@ -404,7 +405,7 @@ async def delete_agent(project_id: str, location: str, agent_id: str, request: f
     
 
 # Entity type
-@app.post("/create-entity-type/projects/{project_id}/locations/{location}/agents/{agent_id}")
+@router.post("/create-entity-type/projects/{project_id}/locations/{location}/agents/{agent_id}")
 async def create_entity_type(project_id: str, location: str, agent_id: str, request: fastapi.Request, response: fastapi.Response):
     entity_type_info = await request.json()
     
@@ -440,7 +441,7 @@ async def create_entity_type(project_id: str, location: str, agent_id: str, requ
         print('Error creating entity type: {}'.format(ex)) 
         return {"message": "Error creating entity type: {}".format(ex)}
 
-@app.get("/get-entity-type/projects/{project_id}/locations/{location}/agents/{agent_id}/entityTypes/{entity_type_id}")
+@router.get("/get-entity-type/projects/{project_id}/locations/{location}/agents/{agent_id}/entityTypes/{entity_type_id}")
 async def get_entity_type(project_id: str, location: str, agent_id: str, entity_type_id: str, request: fastapi.Request, response: fastapi.Response):
     client_options = get_client_options(location)
     entity_type_client = EntityTypesAsyncClient(client_options=client_options)
@@ -465,7 +466,7 @@ async def get_entity_type(project_id: str, location: str, agent_id: str, entity_
         print('Error getting entity type: {}'.format(ex)) 
         return {"message": "Error getting entity type: {}".format(ex)}
 
-@app.get("/get-list-entity-type/projects/{project_id}/locations/{location}/agents/{agent_id}")
+@router.get("/get-list-entity-type/projects/{project_id}/locations/{location}/agents/{agent_id}")
 async def get_list_entity_type(project_id: str, location: str, agent_id: str, request: fastapi.Request, response: fastapi.Response):
     client_options = get_client_options(location)    
     agents_client = AgentsAsyncClient()
@@ -495,7 +496,7 @@ async def get_list_entity_type(project_id: str, location: str, agent_id: str, re
         print('Error getting entity type: {}'.format(ex)) 
         return {"message": "Error getting entity type: {}".format(ex)}
 
-@app.delete("/delete-entity-type/projects/{project_id}/locations/{location}/agents/{agent_id}/entityTypes/{entity_type_id}")
+@router.delete("/delete-entity-type/projects/{project_id}/locations/{location}/agents/{agent_id}/entityTypes/{entity_type_id}")
 async def delete_entity_type(project_id: str, location: str, agent_id: str, entity_type_id: str, request: fastapi.Request, response: fastapi.Response):
     client_options = get_client_options(location)
     entity_type_client = EntityTypesAsyncClient(client_options=client_options)
@@ -523,7 +524,7 @@ async def delete_entity_type(project_id: str, location: str, agent_id: str, enti
         print('Error getting entity type: {}'.format(ex)) 
         return {"message": "Error getting entity type: {}".format(ex)}
 
-@app.patch("/update-entity-type/projects/{project_id}/locations/{location}/agents/{agent_id}/entityTypes/{entity_type_id}")
+@router.patch("/update-entity-type/projects/{project_id}/locations/{location}/agents/{agent_id}/entityTypes/{entity_type_id}")
 async def update_entity_type(project_id: str, location: str, agent_id: str, entity_type_id: str, request: fastapi.Request, response: fastapi.Response):
     entity_type_info = await request.json()
     client_options = get_client_options(location)
@@ -557,7 +558,7 @@ async def update_entity_type(project_id: str, location: str, agent_id: str, enti
         return {"message": "Error updating entity type: {}".format(ex)}
 
 #List locations
-@app.get("/get-list-location/projects/{project_id}")
+@router.get("/get-list-location/projects/{project_id}")
 async def update_entity_type(project_id: str, request: fastapi.Request, response: fastapi.Response):
     try:
         with open('./credential.json', 'r') as file:
@@ -574,7 +575,7 @@ async def update_entity_type(project_id: str, request: fastapi.Request, response
         print('Error getting location: {}'.format(ex)) 
         return {"message": "Error getting location: {}".format(ex)}
     
-@app.get("/get-location/projects/{project_id}/locations/{location}")
+@router.get("/get-location/projects/{project_id}/locations/{location}")
 async def update_entity_type(project_id: str, location: str, request: fastapi.Request, response: fastapi.Response):
     try:
         with open('./credential.json', 'r') as file:
@@ -587,3 +588,5 @@ async def update_entity_type(project_id: str, location: str, request: fastapi.Re
         response.status_code = get_code_ex(ex)
         print('Error getting location: {}'.format(ex)) 
         return {"message": "Error getting location: {}".format(ex)}
+
+print("Start server dialogflow successfully")

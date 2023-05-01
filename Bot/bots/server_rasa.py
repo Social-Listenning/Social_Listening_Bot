@@ -1,14 +1,13 @@
 from typing import Optional, List
-from fastapi import Form, FastAPI, File, UploadFile, HTTPException, Request, BackgroundTasks
-from fastapi.middleware.cors import CORSMiddleware
+from fastapi import APIRouter, Form, File, UploadFile, HTTPException, Request, BackgroundTasks
 from rasa.model_training import train
 from rasa.core.agent import Agent
 from rasa.utils.endpoints import EndpointConfig
 from rasa.shared.constants import DEFAULT_NLU_FALLBACK_INTENT_NAME
 from rasa.core.http_interpreter import RasaNLUHttpInterpreter
 from textblob import TextBlob
-from dotenv import load_dotenv, dotenv_values
 from urllib.parse import urljoin
+from dotenv import dotenv_values
 
 import httpx
 import yaml
@@ -22,18 +21,7 @@ import nltk
 nltk.download('vader_lexicon')
 from nltk.sentiment import SentimentIntensityAnalyzer
 
-load_dotenv()
-config_env = dotenv_values(".env")
-
-app = FastAPI()
-origins = ["*"]
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+router = APIRouter()
 
 text_import_library = f"""
 from typing import Any, Text, Dict, List
@@ -42,7 +30,7 @@ from rasa_sdk.events import SlotSet
 from rasa_sdk.executor import CollectingDispatcher
 from textblob import TextBlob
 """
-
+config_env = dotenv_values(".env")
 social_page_url = config_env["SOCIAL_PAGE_URL"]
 action_endpoint = EndpointConfig(url=config_env["RASA_ACTION_URL"])
 http_interpreter = RasaNLUHttpInterpreter(EndpointConfig(
@@ -311,18 +299,18 @@ async def handle_save_message_bot_thread(message: any):
         future = executor.submit(async_function_executor, handle_save_message_bot, message=message)
         return await asyncio.wrap_future(future)
 
-@app.post('/train')
+@router.post('/train')
 async def handling_model(background_tasks: BackgroundTasks, bot_id: str = Form(), service_url: str = Form(), files: List[Optional[UploadFile]] = File(...)):
     background_tasks.add_task(handle_train_model_thread, bot_id, service_url, files)
     return {"message": "Send webhook successfully"}
 
-@app.post('/webhook/rasa')
+@router.post('/webhook/rasa')
 async def handling_message(background_tasks: BackgroundTasks, request: Request):
     message = await request.json()
     background_tasks.add_task(handle_message_thread, message)
     return {"message": "Send webhook successfully"}
 
-@app.post('/save-message-bot')
+@router.post('/save-message-bot')
 async def handling_sentiment(background_tasks: BackgroundTasks, request: Request):
     message = await request.json()
     background_tasks.add_task(handle_save_message_bot_thread, message)
@@ -333,3 +321,5 @@ print("utter_action_list", utter_action_list)
 
 load_all_model()
 print(agent_list)
+
+print("Start server rasa successfully")
