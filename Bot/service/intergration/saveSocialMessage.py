@@ -6,7 +6,7 @@ async def save_social_message(message, sentiment):
     comment_info = {
       "networkId": message.get("recipient_id"),
       "message": message.get("text"),
-      "sender": message.get("sender_id"),
+      "sender": message.get("sender"),
       "createdAt": message.get("metadata").get("comment_created_time"),
       "type": message.get("type_message"),
       "parent": {

@@ -27,20 +27,27 @@ async def reply_facebook_message(message: any):
   comment_info = {
     "networkId": message.get("pageId"),
     "message": message.get("messageReply"),
-    "sender": message.get("pageId"),
+    "sender": {
+      "id": message.get("pageId"),
+      "name": message.get("pageName"),
+      "avatar": message.get("avatarUrl")
+    },
     "createdAt": iso_time,
     "type": 'Bot',
     "parent": {
-        "postId": message.get("postId"),
-        "message": None,
-        "permalinkUrl": None,
-        "createdAt": None
+      "postId": message.get("postId"),
+      "message": None,
+      "permalinkUrl": None,
+      "createdAt": None
     },
     "sentiment": None,
     "postId": message.get("postId"),
     "commentId": fb_response.get("id"),
     "parentId": message.get("fb_message_id")
   }
+  
+  print(message)
+  print(comment_info)
   
   backend_auth_header = {
     'Authorization': settings.BACKEND_AUTH_HEADER
