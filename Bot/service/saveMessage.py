@@ -39,9 +39,20 @@ async def handle_message(message: any):
 		"avatar": sender_info.get('picture').get('data').get('url'),
 		"id": sender_info.get('id'),
 	}
+  
+  if message.get("type_message") == "Message":
+    recipient_response = await GetMethod(
+			domain= settings.FACEBOOK_GRAPH_ENDPOINT, 
+			endpoint="/{0}?fields=picture,name&access_token={1}".format(message.get('recipient_id'), network_extend_data.get('accessToken'))
+		)
+    recipient_info = recipient_response.json()
+    message["recipient"] = {
+			"name": recipient_info.get('name'),
+			"avatar": recipient_info.get('picture').get('data').get('url'),
+			"id": recipient_info.get('id'),
+		}
 
-  print(message)
-  await save_social_message(message, None)
+  await save_social_message(message, None) 
 
 	# if message.get("recipient_id") in TrainAction.agent_list:
 	# 	response = await TrainAction.agent_list.get(message.get("recipient_id")).handle_text(text_message=message.get("text"), sender_id=message.get("sender_id"))          

@@ -47,7 +47,7 @@ module.exports = {
     },
     messengerSendToBot: async (value) => {
         try {
-            const { sender, recipient, message } = value;
+            const { sender, recipient, message, timestamp } = value;
             if (await checkPageWorking(recipient.id)) {
                 const requestBody = {
                     text: message && message.text,
@@ -55,9 +55,11 @@ module.exports = {
                     recipient_id: recipient && recipient.id,
                     channel: 'facebook',
                     type_message: 'Message',
+                    message_id: message && message.mid,
+                    parent_message_id: message && message.reply_to && message.reply_to.mid,
+                    created_time: new Date(timestamp).toISOString(),
                     service_url: BOT_CONNECTOR_URL,
                 };
-                // console.log('Message: ', requestBody);
                 const result = await axios.post(`${BOT_URL}/webhook/rasa`, requestBody);
                 return result.data;
             }

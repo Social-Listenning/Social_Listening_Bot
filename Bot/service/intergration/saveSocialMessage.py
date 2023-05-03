@@ -30,3 +30,26 @@ async def save_social_message(message, sentiment):
       headers = backend_auth_header
     )
     print("Response save comment: ", response_save_comment)
+  elif message.get("type_message") == "Message":
+    message_info = {
+      "networkId": message.get("recipient_id"),
+      "message": message.get("text"),
+      "sender": message.get("sender"),
+      "recipient": message.get("recipient"),
+      "createdAt": message.get("created_time"),
+      "messageId": message.get("message_id"),
+      "repliedMessageId": message.get("parent_message_id")
+    }
+    
+    print(message_info)
+    
+    backend_auth_header = {
+      'Authorization': settings.BACKEND_AUTH_HEADER
+    }
+    response_save_message = await PostMethod(
+      domain = settings.BACKEND_ENPOINT, 
+      endpoint = "/message/save", 
+      body = message_info, 
+      headers = backend_auth_header
+    )
+    print("Response save message: ", response_save_message)
