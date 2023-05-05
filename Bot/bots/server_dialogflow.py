@@ -50,10 +50,6 @@ async def update_flow_agent(project_id: str, location: str, agent_id: str, inten
     try:
         updated_flow = await flows_client.update_flow(update_request)
         print("Flow updated successfully: {}".format(updated_flow.name))
-        print("Waiting for train to complete...")
-        operation = await flows_client.train_flow(request={"name": flow_name})
-        await operation.result()
-        print("Train successfully")
     except Exception as ex:
         print("Error updating flow: {}".format(ex)) 
 
@@ -207,8 +203,6 @@ async def update_intent(project_id: str, location: str, agent_id: str, intent_id
     client_options = get_client_options(location)
     intents_client = IntentsAsyncClient(client_options=client_options)
     intent_name = intents_client.intent_path(project_id, location, agent_id, intent_id)
-    flows_client = FlowsAsyncClient(client_options=client_options)
-    flow_name = flows_client.flow_path(project_id, location, agent_id, "00000000-0000-0000-0000-000000000000")
     try:
         intent = await intents_client.get_intent(name=intent_name)
         intent.display_name = intent_info.get("display_name")
@@ -238,10 +232,6 @@ async def update_intent(project_id: str, location: str, agent_id: str, intent_id
                 "entity_type": parameter.entity_type,
                 "is_list": parameter.is_list,
             })
-        print("Waiting for train to complete...")
-        operation = await flows_client.train_flow(request={"name": flow_name})
-        await operation.result()
-        print("Train successfully")
         return {
             "name": updated_intent.name,
             "display_name": updated_intent.display_name,
