@@ -15,7 +15,7 @@ import os
 
 router = APIRouter()
 
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "./credential.json"
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "credential.json"
 
 def get_client_options(location):
     api_endpoint = "dialogflow.googleapis.com"
@@ -26,6 +26,10 @@ def get_client_options(location):
 def get_code_ex(ex):
     if "400" in str(ex):
         return 400
+    elif "401" in str(ex):
+        return 401
+    elif "403" in str(ex):
+        return 403
     elif "404" in str(ex):
         return 404
     elif "409" in str(ex):
@@ -264,7 +268,7 @@ async def delete_intent(project_id: str, location: str, agent_id: str, intent_id
                         await flows_client.update_flow(request={"flow": flow})
 
         await intents_client.delete_intent(request={"name": intent_name})    
-        return {"message": "Intent deleted successfully: {}".format(intent_name)}
+        return {"result": "Intent deleted successfully: {}".format(intent_name)}
     except Exception as ex:
         response.status_code = get_code_ex(ex)
         print("Error deleting intent: {}".format(ex)) 
@@ -397,7 +401,7 @@ async def delete_agent(project_id: str, location: str, agent_id: str, request: f
     agent_name = agents_client.agent_path(project_id, location, agent_id)
     try:
         await agents_client.delete_agent(request={"name": agent_name})    
-        return {"message": "Agent deleted successfully: {}".format(agent_name)}
+        return {"result": "Agent deleted successfully: {}".format(agent_name)}
     except Exception as ex:        
         response.status_code = get_code_ex(ex)
         print('Error deleting agent: {}'.format(ex)) 
@@ -518,7 +522,7 @@ async def delete_entity_type(project_id: str, location: str, agent_id: str, enti
                         intent.parameters = modified_parameters
                         await intents_client.update_intent(request={"intent": intent})
         await entity_type_client.delete_entity_type(request={"name":entity_type_name})
-        return {"message": "Entity type deleted successfully: {}".format(entity_type_name)}
+        return {"result": "Entity type deleted successfully: {}".format(entity_type_name)}
     except Exception as ex:        
         response.status_code = get_code_ex(ex)
         print('Error getting entity type: {}'.format(ex)) 

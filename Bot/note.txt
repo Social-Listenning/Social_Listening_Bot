@@ -23,3 +23,5 @@ pip install spacy
 python -m spacy download en_core_web_trf
 pip install httpx
 pip install glob
+
+pip install google-cloud-dialogflow-cx
