@@ -12,3 +12,4 @@ python-dotenv
 urllib3
 glob2
 python-multipart
+google-cloud-dialogflow-cx

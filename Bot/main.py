@@ -17,6 +17,7 @@ from rasa.core.http_interpreter import RasaNLUHttpInterpreter
 
 from router.router import router
 from core.config import settings
+from bots import server_dialogflow
 from service.loadAllModel import load_all_models
 from service.createCustomActionFile import create_file_custom_action
 
@@ -39,6 +40,7 @@ def get_application() -> FastAPI:
   ))
   
   application.include_router(router, prefix=settings.API_PREFIX)
+  application.include_router(server_dialogflow.router)
 
   # create_file_custom_action()
   # load_all_models()
