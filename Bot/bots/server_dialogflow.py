@@ -81,7 +81,7 @@ async def create_intent(project_id: str, location: str, agent_id: str, request: 
     intent.training_phrases = intent_info.get("training_phrases") 
     intent.parameters = intent_info.get("parameters") 
 
-    # for phrase in intent_info.get("training_phrase", []):
+    # for phrase in intent_info.get("training_phrases", []):
     #     training_phrase = Intent.TrainingPhrase()
     #     for part in phrase.get("parts", []):
     #         training_phrase.parts.append(Intent.TrainingPhrase.Part(text=part.get("text"), parameter_id=part.get("parameter_id")))
@@ -209,8 +209,8 @@ async def update_intent(project_id: str, location: str, agent_id: str, intent_id
         intent.description = intent_info.get("description")
         intent.priority = intent_info.get("priority")
         intent.is_fallback = intent_info.get("is_fallback") 
-        intent.training_phrases = intent_info.get("training_phrase", [])
-        # for phrase in intent_info.get("training_phrase", []):
+        intent.training_phrases = intent_info.get("training_phrases", [])
+        # for phrase in intent_info.get("training_phrases", []):
         #     training_phrase = Intent.TrainingPhrase()
         #     for part in phrase.get("parts", []):
         #         training_phrase.parts.append(Intent.TrainingPhrase.Part(text=part.get("text"), parameter_id=part.get("parameter_id")))
