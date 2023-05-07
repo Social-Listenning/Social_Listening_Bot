@@ -1,11 +1,12 @@
 const axios = require('axios');
-const { WEB_PAGE_URL } = process.env;
+const { WEB_PAGE_URL, API_KEY } = process.env;
+
 
 module.exports = {
     checkPageWorking: async (pageID) => {
         try {
             const result = await axios.get(`${WEB_PAGE_URL}/socialTab/${pageID}/working`, {
-                headers: { Authorization: '5p3cti4L-t0k3n' },
+                headers: { Authorization: API_KEY },
             });
             return result.data.result;
         } catch (e) {
@@ -13,4 +14,16 @@ module.exports = {
             return e.message;
         }
     },
+    getAccessToken: async (pageID) => {
+        try {
+            const result = await axios.get(`${WEB_PAGE_URL}/socialTab/${pageID}/accessToken`, {
+                headers: { Authorization: API_KEY },
+            })
+            return result.data.result;
+        }
+        catch (error) {
+            console.log(error.message);
+            return error.message;
+        }
+    }
 };
