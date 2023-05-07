@@ -1,8 +1,8 @@
 const axios = require('axios');
 const moment = require('moment');
-const { checkPageWorking } = require('../utils');
+const { checkPageWorking, getAccessToken } = require('../utils');
 
-const { BOT_CONNECTOR_URL, BOT_URL, PAGE_ACCESS_TOKEN } = process.env;
+const { BOT_CONNECTOR_URL, BOT_URL } = process.env;
 
 module.exports = {
     fbCommentSendToBot: async (value) => {
@@ -11,6 +11,8 @@ module.exports = {
             const botId = post_id.split('_')[0];
             if (await checkPageWorking(botId)) {
                 if (from.id !== botId) {
+                    const PAGE_ACCESS_TOKEN = await getAccessToken(botId);
+
                     const resultInformationPost = await axios.get(
                         `${process.env.GRAPH_FACEBOOK_API}/v14.0/${post_id}?fields=message,created_time&access_token=${PAGE_ACCESS_TOKEN}`
                     );
