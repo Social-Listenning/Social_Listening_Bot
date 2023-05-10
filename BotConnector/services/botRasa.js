@@ -75,8 +75,8 @@ module.exports = {
                 if (message.channel.toLowerCase() === 'telegram') {
                     if (message.type_message && message.type_message.toLowerCase() === 'message') {
                         const requestBody = {
-                            chat_id: message.from,
-                            text: 'Hello, World!',
+                            chat_id: message.recipient_id,
+                            text: message.text,
                         };
                         result = await axios.post(
                             `https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`,

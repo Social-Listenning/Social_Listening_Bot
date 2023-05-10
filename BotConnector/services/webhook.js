@@ -97,7 +97,7 @@ module.exports = {
     telegramSendToBot: async (value) => {
         try {
             const { from, chat, text } = value;
-            if (await checkPageWorking(metadata.phone_number_id)) {
+            if (await checkPageWorking(chat.id)) {
                 if (from && !from.is_bot) {
                     const requestBody = {
                         text: text,
