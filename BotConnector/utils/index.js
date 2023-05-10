@@ -3,9 +3,10 @@ const { WEB_PAGE_URL, API_KEY } = process.env;
 
 
 module.exports = {
-    checkPageWorking: async (pageID) => {
+    checkPageWorking: async (pageID, typeMessage) => {
         try {
-            const result = await axios.get(`${WEB_PAGE_URL}/socialTab/${pageID}/working`, {
+            console.log(pageID, typeMessage)
+            const result = await axios.get(`${WEB_PAGE_URL}/socialTab/${pageID}/working/type/${typeMessage}`, {
                 headers: { Authorization: API_KEY },
             });
             return result.data.result;
