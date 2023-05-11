@@ -28,53 +28,94 @@ async def reply_facebook_message(message: any):
   intent_data = intent_detect.json()
   intent_id = intent_data.get("intent").split('/')[-1]
   response_intent = find_data(list_response_intent, intent_id)
-  print(response_intent)
   
   if response_intent is not None:
-    response = await PostMethod(
-      domain = 'https://graph.facebook.com',
-      endpoint = "/{0}/comments?access_token={1}".format(message.get('fb_message_id'), message.get('token')),
-      body = {
-        "message": response_intent.get("respond")
-      },
-    )
-    fb_response = response.json()
-    
-    now = datetime.datetime.now()
-    iso_time = now.isoformat()
+    if message.get('messageType') == 'Comment':
+      response = await PostMethod(
+        domain = 'https://graph.facebook.com',
+        endpoint = "/{0}/comments?access_token={1}".format(message.get('fb_message_id'), message.get('token')),
+        body = {
+          "message": response_intent.get("respond")
+        },
+      )
+      fb_response = response.json()
+      
+      now = datetime.datetime.now()
+      iso_time = now.isoformat()
 
-    comment_info = {
-      "networkId": message.get("pageId"),
-      "message": response_intent.get("respond"),
-      "sender": {
-        "id": message.get("pageId"),
-        "name": message.get("pageName"),
-        "avatar": message.get("avatarUrl")
-      },
-      "createdAt": iso_time,
-      "type": 'Bot',
-      "parent": {
+      comment_info = {
+        "networkId": message.get("pageId"),
+        "message": response_intent.get("respond"),
+        "sender": {
+          "id": message.get("pageId"),
+          "name": message.get("pageName"),
+          "avatar": message.get("avatarUrl")
+        },
+        "createdAt": iso_time,
+        "type": 'Bot',
+        "parent": {
+          "postId": message.get("postId"),
+          "message": None,
+          "permalinkUrl": None,
+          "createdAt": None
+        },
+        "sentiment": None,
         "postId": message.get("postId"),
-        "message": None,
-        "permalinkUrl": None,
-        "createdAt": None
-      },
-      "sentiment": None,
-      "postId": message.get("postId"),
-      "commentId": fb_response.get("id"),
-      "parentId": message.get("fb_message_id")
-    }
-    
-    backend_auth_header = {
-      'Authorization': settings.BACKEND_AUTH_HEADER
-    }
-    response_save_comment = await PostMethod(
-      domain = settings.BACKEND_ENPOINT, 
-      endpoint = "/social-message/save", 
-      body = comment_info, 
-      headers = backend_auth_header
-    )
-    print("Response save comment: ", response_save_comment)
+        "commentId": fb_response.get("id"),
+        "parentId": message.get("fb_message_id")
+      }
+      
+      backend_auth_header = {
+        'Authorization': settings.BACKEND_AUTH_HEADER
+      }
+      response_save_comment = await PostMethod(
+        domain = settings.BACKEND_ENPOINT, 
+        endpoint = "/social-message/save", 
+        body = comment_info, 
+        headers = backend_auth_header
+      )
+      print("Response save comment: ", response_save_comment)
+    elif message.get('messageType') == 'Message':
+      response = await PostMethod(
+        domain = 'https://graph.facebook.com/v16.0',
+        endpoint = "/{0}/messages?access_token={1}".format(message.get('pageId'), message.get('token')),
+        body = {
+          "recipient": {"id": message.get("sender").get("senderId")},
+          "message": {"text": response_intent.get("respond")}
+        },
+      )
+      fb_response = response.json()
+      
+      now = datetime.datetime.now()
+      iso_time = now.isoformat()
+      
+      message_info = {
+        "message": response_intent.get("respond"),
+        "sender": {
+          "id": message.get("recipient").get("senderId"),
+          "name": message.get("recipient").get("fullName"),
+          "avatar": message.get("recipient").get("avatarUrl"),
+        },
+        "recipient": {
+          "id": message.get("sender").get("senderId"),
+          "name": message.get("sender").get("fullName"),
+          "avatar": message.get("sender").get("avatarUrl"),
+        },
+        "messageId": fb_response.get("message_id"),
+        "networkId": message.get('pageId'),
+        "createdAt": iso_time,
+      }
+      
+      backend_auth_header = {
+        'Authorization': settings.BACKEND_AUTH_HEADER
+      }
+      response_save_comment = await PostMethod(
+        domain = settings.BACKEND_ENPOINT, 
+        endpoint = "/message/save", 
+        body = message_info, 
+        headers = backend_auth_header
+      )
+      print("Response save message: ", response_save_comment)
 
 def find_data(list, find_data):
   if not find_data:

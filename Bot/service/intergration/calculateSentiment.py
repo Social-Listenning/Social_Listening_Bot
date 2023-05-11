@@ -17,6 +17,7 @@ async def calculate_sentiment(message: any):
   tabId = message.get('tabId')
   messageId = message.get('messageId')
   sentence = message.get('message')
+  message_type = message.get('messageType')
   
   sia = SentimentIntensityAnalyzer()
   sentiment = sia.polarity_scores(sentence)
@@ -54,7 +55,7 @@ async def calculate_sentiment(message: any):
   }
   response_calculate_sentiment = await PostMethod(
     domain = settings.BACKEND_ENPOINT, 
-    endpoint = "/social-message/calculate-sentiment", 
+    endpoint = "/social-message/calculate-sentiment" if (message_type == 'Comment') else "/message/calculate-sentiment",
     body = dataReturn, 
     headers = backend_auth_header
   )
