@@ -286,13 +286,12 @@ async def detect_intent(project_id: str, location: str, agent_id: str, session_i
 
     try:
         deteced_intent = await sessions_client.detect_intent(request={"session": session_name, "query_input": query_input, "query_params": query_params})
-        print('Intent detected')
-        print(deteced_intent)
+        # print('Intent detected')
         query_result = deteced_intent.query_result
         result = {
             "text": query_result.text,
             "language_code": query_result.language_code,
-            "intent": query_result.intent.display_name,
+            "intent": query_result.intent.name,
             "intent_detection_confidence": query_result.intent_detection_confidence,
             "sentiment_score": query_result.sentiment_analysis_result.score,
             "sentiment_magnitude": query_result.sentiment_analysis_result.magnitude,

@@ -1,6 +1,7 @@
 const axios = require('axios');
 const moment = require('moment');
 const { checkPageWorking, getAccessToken } = require('../utils');
+const { MessageType } = require('../common/enum')
 
 const { BOT_CONNECTOR_URL, BOT_URL } = process.env;
 
@@ -9,7 +10,7 @@ module.exports = {
         try {
             const { from, post, post_id, comment_id, parent_id, message, created_time } = value;
             const botId = post_id.split('_')[0];
-            if (await checkPageWorking(botId)) {
+            if (await checkPageWorking(botId, MessageType.Comment)) {
                 if (from.id !== botId) {
                     const PAGE_ACCESS_TOKEN = await getAccessToken(botId);
 
@@ -50,7 +51,7 @@ module.exports = {
     messengerSendToBot: async (value) => {
         try {
             const { sender, recipient, message, timestamp } = value;
-            if (await checkPageWorking(recipient.id)) {
+            if (await checkPageWorking(recipient.id, MessageType.Message)) {
                 const requestBody = {
                     text: message && message.text,
                     sender_id: sender && sender.id,
