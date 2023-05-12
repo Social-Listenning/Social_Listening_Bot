@@ -4,6 +4,7 @@ import datetime
 
 from core.config import settings
 from helper.httpMethod import PostMethod
+from helper.getSetting import get_setting
 from helper.execAsyncFunction import async_function_executor
 
 async def reply_facebook_message_thread(message: any):
@@ -17,9 +18,12 @@ async def reply_facebook_message(message: any):
   agent_id = list(dialogflow_data.keys())[0]
   list_response_intent = dialogflow_data.get(agent_id)
   
+  DIALOGFLOW_KEY = await get_setting('DIALOGFLOW_KEY', 'GOOGLE_API')
+  DIALOGFLOW_LOCATION = await get_setting('DIALOGFLOW_LOCATION', 'GOOGLE_API')
+  
   intent_detect = await PostMethod(
     domain = settings.DIALOGFLOW_ENDPOINT,
-    endpoint = "/detect-intent/projects/kltn-381914/locations/us-central1/agents/{0}/sessions/{1}".format(agent_id, message.get('messageId')),
+    endpoint = "/detect-intent/projects/{0}/locations/{1}/agents/{2}/sessions/{3}".format(DIALOGFLOW_KEY, DIALOGFLOW_LOCATION, agent_id, message.get('messageId')),
     body = {
       "text": message.get("message"),
       "language_code": "en"
