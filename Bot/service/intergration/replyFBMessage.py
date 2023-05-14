@@ -17,6 +17,7 @@ async def reply_facebook_message(message: any):
   dialogflow_data =message.get("replyInfo").get("dialogFlow")
   agent_id = list(dialogflow_data.keys())[0]
   list_response_intent = dialogflow_data.get(agent_id)
+  notify_agent = message.get('replyInfo').get('notifyAgent')
   
   DIALOGFLOW_KEY = await get_setting('DIALOGFLOW_KEY', 'GOOGLE_API')
   DIALOGFLOW_LOCATION = await get_setting('DIALOGFLOW_LOCATION', 'GOOGLE_API')
@@ -31,7 +32,7 @@ async def reply_facebook_message(message: any):
   )
   intent_data = intent_detect.json()
   intent_id = intent_data.get("intent").split('/')[-1]
-  response_intent = find_data(list_response_intent, intent_id)
+  response_intent = find_data(list_response_intent, intent_id, notify_agent)
   
   if response_intent is not None:
     if message.get('messageType') == 'Comment':
@@ -120,9 +121,25 @@ async def reply_facebook_message(message: any):
         headers = backend_auth_header
       )
       print("Response save message: ", response_save_comment)
+  else:
+    backend_auth_header = {
+      'Authorization': settings.BACKEND_AUTH_HEADER
+    }
+    notify_agent_response = await PostMethod(
+      domain = settings.BACKEND_ENPOINT,
+      endpoint = "workflow/{0}/notifyAgent".format(message.get("flowId")),
+      headers = backend_auth_header,
+      body = {
+        "messageId": message.get("messageId"),
+        "messageType": message.get("messageType")
+    })
+    print(notify_agent_response)
+    
 
-def find_data(list, find_data):
-  if not find_data:
+def find_data(list, find_data, notify_agent = True):
+  if not find_data and notify_agent:
+    return None
+  elif not find_data :
     for data in list:
       if data.get("hasFallback") == True:
         return data
