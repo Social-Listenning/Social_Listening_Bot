@@ -131,8 +131,10 @@ async def reply_facebook_message(message: any):
       headers = backend_auth_header,
       body = {
         "messageId": message.get("messageId"),
-        "messageType": message.get("messageType")
-    })
+        "messageType": message.get("messageType"),
+        "notifyAgentMessage": "Intent"
+      }
+    )
     print(notify_agent_response)
     
 
