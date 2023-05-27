@@ -243,8 +243,8 @@ async def update_intent(project_id: str, location: str, agent_id: str, intent_id
         }
     except Exception as ex:        
         response.status_code = get_code_ex(ex)
-        print('Error updating agent: {}'.format(ex)) 
-        return {"message": "Error updating agent: {}".format(ex)}
+        print('Error updating intent: {}'.format(ex)) 
+        return {"message": "Error updating intent: {}".format(ex)}
 
 @router.delete("/delete-intent/projects/{project_id}/locations/{location}/agents/{agent_id}/intents/{intent_id}")
 async def delete_intent(project_id: str, location: str, agent_id: str, intent_id: str, request: fastapi.Request, response: fastapi.Response):
