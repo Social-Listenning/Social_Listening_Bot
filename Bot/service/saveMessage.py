@@ -1,14 +1,10 @@
 import asyncio
 import concurrent.futures
 import json
-from rasa.shared.constants import DEFAULT_NLU_FALLBACK_INTENT_NAME
-from nltk.sentiment import SentimentIntensityAnalyzer
 
 from core.config import settings
 from helper.httpMethod import GetMethod
 
-from helper.httpMethod import PostMethod
-from model.trainAction import TrainAction
 from helper.execAsyncFunction import async_function_executor
 from service.intergration.saveSocialMessage import save_social_message
 
@@ -53,21 +49,3 @@ async def handle_message(message: any):
 		}
 
   await save_social_message(message, None) 
-
-	# if message.get("recipient_id") in TrainAction.agent_list:
-	# 	response = await TrainAction.agent_list.get(message.get("recipient_id")).handle_text(text_message=message.get("text"), sender_id=message.get("sender_id"))          
-	# 	if response:
-	# 		if len(response) == 0:
-	# 			result["text"] = "Sorry, I don't understand"
-	# 		else: result["text"] = response[0]["text"]
-	# 	else:
-	# 		fallback_response = await TrainAction.agent_list.get(message.get("recipient_id")).handle_text(DEFAULT_NLU_FALLBACK_INTENT_NAME, sender_id=message.get("sender_id"))
-	# 		print("fallback_response: ", fallback_response)
-	# 		if len(fallback_response) == 0:
-	# 			result["text"] = "Sorry, I don't understand"
-	# 		else: result["text"] = fallback_response[0]["text"]
-	# else:
-	# 	result["text"] = f"""Model {message.get('recipient_id')} not exist"""
-
-	# response = await PostMethod(domain=message.get("service_url"), endpoint="/rasa/conversations/activities", body=result)
-	# return response

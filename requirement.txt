@@ -1,15 +1,7 @@
 fastapi
-rasa
-textblob
-spacytextblob
-spacy
 httpx
-pyyaml
-typing
 uvicorn
 nltk
 python-dotenv
-urllib3
-glob2
 python-multipart
 google-cloud-dialogflow-cx
